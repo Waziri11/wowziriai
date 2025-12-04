@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useChat } from "ai/react";
-import { Input, Typography, message, Tooltip, Tag } from "antd";
+import { Input, Typography, message, Tooltip } from "antd";
 import {
   AudioOutlined,
   SendOutlined,
@@ -15,11 +15,11 @@ import wowziriLogo from "./assets/images/logo.png";
 const { Title, Text } = Typography;
 const { TextArea } = Input;
 const TYPE_SCALE = {
-  headline: "clamp(34px, 5.4vw, 52px)",
-  subhead: "clamp(16px, 2vw, 20px)",
+  headline: "clamp(28px, 4.5vw, 40px)",
+  subhead: "clamp(15px, 1.8vw, 18px)",
   bubble: 18,
   body: 18,
-  small: 14,
+  small: 13,
 };
 
 export default function Chat({ themeMode, onThemeChange }) {
@@ -33,6 +33,14 @@ export default function Chat({ themeMode, onThemeChange }) {
     append,
   } = useChat({
     api: "/api/chat",
+    onError: (err) => {
+      setErrorMeta({
+        id: Date.now(),
+        message:
+          err?.message ??
+          "Wowziri hit a snag replying. Please try again in a moment.",
+      });
+    },
   });
 
   const [isRecording, setIsRecording] = useState(false);
@@ -42,6 +50,16 @@ export default function Chat({ themeMode, onThemeChange }) {
   const messagesEndRef = useRef(null);
   const composerRef = useRef(null);
   const [messageApi, contextHolder] = message.useMessage();
+  const [errorMeta, setErrorMeta] = useState(null);
+  const demoPrompts = useMemo(
+    () => [
+      "Summarize my research notes into key bullet points.",
+      "Plan a 3-day creative retreat itinerary.",
+      "Explain quantum computing like I'm new to it.",
+    ],
+    [],
+  );
+  const [promptIndex, setPromptIndex] = useState(0);
 
   const isBrowser = typeof window !== "undefined";
   const SpeechRecognition = useMemo(() => {
@@ -151,6 +169,23 @@ export default function Chat({ themeMode, onThemeChange }) {
 
   useEffect(() => {
     if (
+      errorMeta &&
+      messages.length > 0 &&
+      messages[messages.length - 1].role === "assistant"
+    ) {
+      setErrorMeta(null);
+    }
+  }, [messages, errorMeta]);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setPromptIndex((prev) => (prev + 1) % demoPrompts.length);
+    }, 3500);
+    return () => clearInterval(timer);
+  }, [demoPrompts.length]);
+
+  useEffect(() => {
+    if (
       !isBrowser ||
       !voiceEnabled ||
       typeof window.speechSynthesis === "undefined" ||
@@ -229,11 +264,72 @@ export default function Chat({ themeMode, onThemeChange }) {
     color: palette.icon,
   };
 
+  const waitingForAssistant =
+    isLoading &&
+    messages.length > 0 &&
+    messages[messages.length - 1].role === "user";
+
+  const renderThinkingBubble = () => (
+    <div
+      key="wowziri-thinking"
+      style={{
+        padding: "20px 28px",
+        borderRadius: 22,
+        background: palette.botBubble,
+        border: `1px solid ${palette.border}`,
+        color: palette.text,
+        display: "flex",
+        flexDirection: "column",
+        gap: 8,
+      }}
+    >
+      <Text strong style={{ color: palette.accent, fontSize: 16 }}>
+        Wowziri
+      </Text>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 10,
+          color: palette.hint,
+          fontSize: TYPE_SCALE.body,
+        }}
+      >
+        <LoadingOutlined style={{ fontSize: 18 }} spin />
+        <span>Thinking...</span>
+      </div>
+    </div>
+  );
+
+  const renderErrorBubble = () => {
+    if (!errorMeta) return null;
+    return (
+      <div
+        key={`wowziri-error-${errorMeta.id}`}
+        style={{
+          padding: "20px 28px",
+          borderRadius: 22,
+          background: "rgba(255, 65, 54, 0.08)",
+          border: "1px solid rgba(255, 99, 71, 0.5)",
+          color: "#ff655a",
+          display: "flex",
+          flexDirection: "column",
+          gap: 8,
+        }}
+      >
+        <Text strong style={{ fontSize: 16 }}>
+          Wowziri
+        </Text>
+        <div style={{ fontSize: TYPE_SCALE.body }}>{errorMeta.message}</div>
+      </div>
+    );
+  };
+
   return (
     <div
       style={{
         minHeight: "100vh",
-        padding: "48px clamp(20px, 5vw, 96px)",
+        padding: "44px clamp(18px, 4.5vw, 84px)",
         display: "flex",
         flexDirection: "column",
         gap: 32,
@@ -250,11 +346,11 @@ export default function Chat({ themeMode, onThemeChange }) {
           flexWrap: "wrap",
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 18 }}>
           <div
             style={{
-              width: 78,
-              height: 78,
+              width: 64,
+              height: 64,
               borderRadius: "50%",
               border: `1px solid ${palette.border}`,
               background: isDark ? "rgba(255,255,255,0.05)" : "#ffffff",
@@ -268,7 +364,7 @@ export default function Chat({ themeMode, onThemeChange }) {
             <img
               src={wowziriLogo}
               alt="Wowziri logo"
-              style={{ width: 54, height: 54 }}
+              style={{ width: 46, height: 46 }}
             />
           </div>
           <div>
@@ -338,8 +434,6 @@ export default function Chat({ themeMode, onThemeChange }) {
           display: "flex",
           flexDirection: "column",
           gap: 24,
-          borderTop: `1px solid ${palette.border}`,
-          paddingTop: 24,
         }}
       >
         <div
@@ -360,12 +454,6 @@ export default function Chat({ themeMode, onThemeChange }) {
                 maxWidth: 480,
               }}
             >
-              <Tag
-                color="green"
-                style={{ marginBottom: 16, padding: "6px 16px", fontSize: 16 }}
-              >
-                Wowziri is listening
-              </Tag>
               <Title
                 level={2}
                 style={{
@@ -376,13 +464,41 @@ export default function Chat({ themeMode, onThemeChange }) {
               >
                 Ask anything. Use your voice or keyboard.
               </Title>
-              <Text style={{ color: palette.hint, fontSize: TYPE_SCALE.subhead }}>
-                Start with prompts like “Summarize my notes” or “Plan a creative
-                weekend”.
-              </Text>
+              <div
+                style={{
+                  position: "relative",
+                  height: 32,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  overflow: "hidden",
+                }}
+              >
+                {demoPrompts.map((prompt, idx) => (
+                  <Text
+                    key={prompt}
+                    style={{
+                      position: idx === promptIndex ? "relative" : "absolute",
+                      opacity: promptIndex === idx ? 1 : 0,
+                      transform:
+                        promptIndex === idx ? "translateY(0)" : "translateY(10px)",
+                      transition: "opacity 0.5s ease, transform 0.5s ease",
+                      color: palette.hint,
+                      fontSize: TYPE_SCALE.subhead,
+                      width: "100%",
+                    }}
+                  >
+                    {prompt}
+                  </Text>
+                ))}
+              </div>
             </div>
           ) : (
-            messages.map(renderMessage)
+            <>
+              {messages.map(renderMessage)}
+              {waitingForAssistant && renderThinkingBubble()}
+              {renderErrorBubble()}
+            </>
           )}
           <div ref={messagesEndRef} />
         </div>
