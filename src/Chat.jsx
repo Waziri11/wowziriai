@@ -64,14 +64,14 @@ export default function Chat({ themeMode, onThemeChange }) {
         setSidebarOpen(false);
       }
     };
-    
+
     checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
   }, []);
 
-  const currentChat = useMemo(() => 
-    chats.find(chat => chat.id === currentChatId) || null,
+  const currentChat = useMemo(
+    () => chats.find((chat) => chat.id === currentChatId) || null,
     [chats, currentChatId]
   );
 
@@ -100,12 +100,12 @@ export default function Chat({ themeMode, onThemeChange }) {
       console.error("❌ Chat error:", err);
       console.error("Error message:", err?.message);
       console.error("Error details:", err);
-      
+
       let userMessage = "Wowziri encountered an issue. Please try again.";
-      
+
       try {
         let errorStr = "";
-        
+
         if (err?.message) {
           try {
             const errorObj = JSON.parse(err.message);
@@ -114,25 +114,50 @@ export default function Chat({ themeMode, onThemeChange }) {
             errorStr = err.message;
           }
         }
-        
+
         errorStr = String(errorStr || "");
-        
-        if (errorStr.includes("429") || errorStr.includes("quota") || errorStr.includes("Too Many Requests")) {
-          userMessage = "We're getting too many requests right now. Please wait a moment and try again.";
-        } else if (errorStr.includes("404") || errorStr.includes("Not Found") || errorStr.includes("not found")) {
-          userMessage = "The AI model is currently unavailable. Please try again or contact support.";
-        } else if (errorStr.includes("500") || errorStr.includes("Internal Server Error")) {
-          userMessage = "Something went wrong on our end. Please try again in a moment.";
-        } else if (errorStr.includes("network") || errorStr.includes("fetch") || errorStr.includes("Failed to fetch")) {
-          userMessage = "Network connection issue. Please check your internet and try again.";
-        } else if (errorStr.includes("API key") || errorStr.includes("authentication") || errorStr.includes("GEMINI_API_KEY")) {
-          userMessage = "Authentication issue detected. Please contact support.";
+
+        if (
+          errorStr.includes("429") ||
+          errorStr.includes("quota") ||
+          errorStr.includes("Too Many Requests")
+        ) {
+          userMessage =
+            "We're getting too many requests right now. Please wait a moment and try again.";
+        } else if (
+          errorStr.includes("404") ||
+          errorStr.includes("Not Found") ||
+          errorStr.includes("not found")
+        ) {
+          userMessage =
+            "The AI model is currently unavailable. Please try again or contact support.";
+        } else if (
+          errorStr.includes("500") ||
+          errorStr.includes("Internal Server Error")
+        ) {
+          userMessage =
+            "Something went wrong on our end. Please try again in a moment.";
+        } else if (
+          errorStr.includes("network") ||
+          errorStr.includes("fetch") ||
+          errorStr.includes("Failed to fetch")
+        ) {
+          userMessage =
+            "Network connection issue. Please check your internet and try again.";
+        } else if (
+          errorStr.includes("API key") ||
+          errorStr.includes("authentication") ||
+          errorStr.includes("GEMINI_API_KEY")
+        ) {
+          userMessage =
+            "Authentication issue detected. Please contact support.";
         }
       } catch (parseError) {
         console.error("Error parsing error message:", parseError);
-        userMessage = "Wowziri encountered an unexpected issue. Please try again.";
+        userMessage =
+          "Wowziri encountered an unexpected issue. Please try again.";
       }
-      
+
       setErrorMeta({
         id: Date.now(),
         message: userMessage,
@@ -142,7 +167,7 @@ export default function Chat({ themeMode, onThemeChange }) {
       console.log("✅ Got response from API");
       console.log("Response status:", response.status);
       console.log("Response headers:", response.headers);
-      
+
       if (response.ok) {
         setErrorMeta(null);
       }
@@ -150,45 +175,51 @@ export default function Chat({ themeMode, onThemeChange }) {
   });
 
   // Custom submit handler to create chat on first message
-  const handleSubmit = useCallback((e) => {
-    e?.preventDefault();
-    
-    // If no current chat exists, create one
-    if (!currentChatId && input.trim()) {
-      const newChat = {
-        id: Date.now().toString(),
-        title: "New Chat",
-        messages: [],
-        createdAt: new Date().toISOString(),
-      };
-      setChats(prev => [newChat, ...prev]);
-      setCurrentChatId(newChat.id);
-    }
-    
-    // Call original submit
-    originalHandleSubmit(e);
-  }, [currentChatId, input, originalHandleSubmit]);
+  const handleSubmit = useCallback(
+    (e) => {
+      e?.preventDefault();
+
+      // If no current chat exists, create one
+      if (!currentChatId && input.trim()) {
+        const newChat = {
+          id: Date.now().toString(),
+          title: "New Chat",
+          messages: [],
+          createdAt: new Date().toISOString(),
+        };
+        setChats((prev) => [newChat, ...prev]);
+        setCurrentChatId(newChat.id);
+      }
+
+      // Call original submit
+      originalHandleSubmit(e);
+    },
+    [currentChatId, input, originalHandleSubmit]
+  );
 
   // Sync messages to current chat
   useEffect(() => {
     if (messages.length > 0) {
-      setChats(prevChats => prevChats.map(chat => 
-        chat.id === currentChatId 
-          ? { 
-              ...chat, 
-              messages,
-              title: chat.messages.length === 0 && messages.length > 0
-                ? generateChatTitle(messages[0].content)
-                : chat.title
-            }
-          : chat
-      ));
+      setChats((prevChats) =>
+        prevChats.map((chat) =>
+          chat.id === currentChatId
+            ? {
+                ...chat,
+                messages,
+                title:
+                  chat.messages.length === 0 && messages.length > 0
+                    ? generateChatTitle(messages[0].content)
+                    : chat.title,
+              }
+            : chat
+        )
+      );
     }
   }, [messages, currentChatId]);
 
   // Load messages when switching chats
   useEffect(() => {
-    const chat = chats.find(c => c.id === currentChatId);
+    const chat = chats.find((c) => c.id === currentChatId);
     if (chat) {
       setMessages(chat.messages || []);
     }
@@ -210,7 +241,7 @@ export default function Chat({ themeMode, onThemeChange }) {
       "Give me 3 brand naming options for a coffee shop.",
       "Explain quantum computing like I'm 12.",
     ],
-    [],
+    []
   );
 
   const isBrowser = typeof window !== "undefined";
@@ -234,12 +265,14 @@ export default function Chat({ themeMode, onThemeChange }) {
       userBorder: isDark ? "rgba(16,163,127,0.6)" : "rgba(16,163,127,0.4)",
       sidebar: isDark ? "rgba(6,7,15,0.95)" : "#f9fafb",
       sidebarHover: isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.03)",
-      newChatBtn: isDark 
+      newChatBtn: isDark
         ? "linear-gradient(135deg, rgba(6, 20, 16, 0.8), rgba(16, 163, 127, 0.15))"
         : "linear-gradient(135deg, rgba(16, 163, 127, 0.1), rgba(6, 20, 16, 0.05))",
-      newChatBorder: isDark ? "rgba(16, 163, 127, 0.3)" : "rgba(16, 163, 127, 0.25)",
+      newChatBorder: isDark
+        ? "rgba(16, 163, 127, 0.3)"
+        : "rgba(16, 163, 127, 0.25)",
     }),
-    [isDark],
+    [isDark]
   );
 
   // Chat management functions
@@ -250,26 +283,29 @@ export default function Chat({ themeMode, onThemeChange }) {
       messages: [],
       createdAt: new Date().toISOString(),
     };
-    setChats(prev => [newChat, ...prev]);
+    setChats((prev) => [newChat, ...prev]);
     setCurrentChatId(newChat.id);
     setMessages([]);
   }, [setMessages]);
 
-  const deleteChat = useCallback((chatId) => {
-    setChats(prev => {
-      const filtered = prev.filter(c => c.id !== chatId);
-      // If deleting current chat, switch to another or clear
-      if (chatId === currentChatId) {
-        if (filtered.length > 0) {
-          setCurrentChatId(filtered[0].id);
-        } else {
-          setCurrentChatId(null);
-          setMessages([]);
+  const deleteChat = useCallback(
+    (chatId) => {
+      setChats((prev) => {
+        const filtered = prev.filter((c) => c.id !== chatId);
+        // If deleting current chat, switch to another or clear
+        if (chatId === currentChatId) {
+          if (filtered.length > 0) {
+            setCurrentChatId(filtered[0].id);
+          } else {
+            setCurrentChatId(null);
+            setMessages([]);
+          }
         }
-      }
-      return filtered;
-    });
-  }, [currentChatId, setMessages]);
+        return filtered;
+      });
+    },
+    [currentChatId, setMessages]
+  );
 
   const switchChat = useCallback((chatId) => {
     setCurrentChatId(chatId);
@@ -311,7 +347,7 @@ export default function Chat({ themeMode, onThemeChange }) {
       .find((msg) => msg.role === "assistant");
     if (!assistantMessage) return undefined;
     const utterance = new window.SpeechSynthesisUtterance(
-      assistantMessage.content,
+      assistantMessage.content
     );
     window.speechSynthesis.cancel();
     window.speechSynthesis.speak(utterance);
@@ -324,7 +360,7 @@ export default function Chat({ themeMode, onThemeChange }) {
     () => () => {
       recognitionRef.current?.abort();
     },
-    [],
+    []
   );
 
   useEffect(() => {
@@ -351,7 +387,9 @@ export default function Chat({ themeMode, onThemeChange }) {
       return;
     }
     if (!supportsSpeech) {
-      messageApi.warning("Speech recognition is not supported in this browser.");
+      messageApi.warning(
+        "Speech recognition is not supported in this browser."
+      );
       return;
     }
 
@@ -456,7 +494,10 @@ export default function Chat({ themeMode, onThemeChange }) {
               <img
                 src={wowziriLogo}
                 alt="Wowziri avatar"
-                style={{ width: isMobile ? 20 : 28, height: isMobile ? 20 : 28 }}
+                style={{
+                  width: isMobile ? 20 : 28,
+                  height: isMobile ? 20 : 28,
+                }}
               />
             </div>
           )}
@@ -580,9 +621,15 @@ export default function Chat({ themeMode, onThemeChange }) {
               animation-delay: 0.4s;
             }
           `}</style>
-          <span className="dot" style={{ fontSize: 24, lineHeight: 0.5 }}>•</span>
-          <span className="dot" style={{ fontSize: 24, lineHeight: 0.5 }}>•</span>
-          <span className="dot" style={{ fontSize: 24, lineHeight: 0.5 }}>•</span>
+          <span className="dot" style={{ fontSize: 24, lineHeight: 0.5 }}>
+            •
+          </span>
+          <span className="dot" style={{ fontSize: 24, lineHeight: 0.5 }}>
+            •
+          </span>
+          <span className="dot" style={{ fontSize: 24, lineHeight: 0.5 }}>
+            •
+          </span>
         </div>
       </div>
     </div>
@@ -651,19 +698,22 @@ export default function Chat({ themeMode, onThemeChange }) {
     );
   };
 
-  const iconButtonBase = useMemo(() => ({
-    width: isMobile ? 38 : 48,
-    height: isMobile ? 38 : 48,
-    borderRadius: 16,
-    border: `1px solid ${palette.border}`,
-    background: isDark ? "rgba(7,8,14,0.75)" : "rgba(255,255,255,0.9)",
-    display: "grid",
-    placeItems: "center",
-    cursor: "pointer",
-    color: palette.icon,
-    transition: "all 0.2s ease",
-    fontSize: isMobile ? 16 : 18,
-  }), [isMobile, palette, isDark]);
+  const iconButtonBase = useMemo(
+    () => ({
+      width: isMobile ? 38 : 48,
+      height: isMobile ? 38 : 48,
+      borderRadius: 16,
+      border: `1px solid ${palette.border}`,
+      background: isDark ? "rgba(7,8,14,0.75)" : "rgba(255,255,255,0.9)",
+      display: "grid",
+      placeItems: "center",
+      cursor: "pointer",
+      color: palette.icon,
+      transition: "all 0.2s ease",
+      fontSize: isMobile ? 16 : 18,
+    }),
+    [isMobile, palette, isDark]
+  );
 
   return (
     <div
@@ -675,7 +725,7 @@ export default function Chat({ themeMode, onThemeChange }) {
       }}
     >
       {contextHolder}
-      
+
       {/* Mobile Overlay */}
       {isMobile && sidebarOpen && (
         <div
@@ -689,7 +739,7 @@ export default function Chat({ themeMode, onThemeChange }) {
           }}
         />
       )}
-      
+
       {/* Sidebar */}
       <div
         style={{
@@ -710,8 +760,20 @@ export default function Chat({ themeMode, onThemeChange }) {
         }}
       >
         {/* Logo and Title in Sidebar */}
-        <div style={{ padding: "20px 16px 16px 16px", borderBottom: `1px solid ${palette.border}` }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+        <div
+          style={{
+            padding: "20px 16px 16px 16px",
+            borderBottom: `1px solid ${palette.border}`,
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              marginBottom: 16,
+            }}
+          >
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
               <div
                 style={{
@@ -746,12 +808,14 @@ export default function Chat({ themeMode, onThemeChange }) {
                 >
                   Wowziri
                 </Title>
-                <Text style={{ color: palette.hint, fontSize: 12, lineHeight: 1.3 }}>
+                <Text
+                  style={{ color: palette.hint, fontSize: 12, lineHeight: 1.3 }}
+                >
                   AI-powered assistant
                 </Text>
               </div>
             </div>
-            
+
             {/* Close button in sidebar */}
             <Tooltip title="Close sidebar">
               <span
@@ -766,7 +830,9 @@ export default function Chat({ themeMode, onThemeChange }) {
                   height: 32,
                   borderRadius: 10,
                   border: `1px solid ${palette.border}`,
-                  background: isDark ? "rgba(7,8,14,0.75)" : "rgba(255,255,255,0.9)",
+                  background: isDark
+                    ? "rgba(7,8,14,0.75)"
+                    : "rgba(255,255,255,0.9)",
                   display: "grid",
                   placeItems: "center",
                   cursor: "pointer",
@@ -779,7 +845,9 @@ export default function Chat({ themeMode, onThemeChange }) {
                   e.currentTarget.style.borderColor = palette.accent;
                 }}
                 onMouseOut={(e) => {
-                  e.currentTarget.style.background = isDark ? "rgba(7,8,14,0.75)" : "rgba(255,255,255,0.9)";
+                  e.currentTarget.style.background = isDark
+                    ? "rgba(7,8,14,0.75)"
+                    : "rgba(255,255,255,0.9)";
                   e.currentTarget.style.borderColor = palette.border;
                 }}
               >
@@ -787,7 +855,7 @@ export default function Chat({ themeMode, onThemeChange }) {
               </span>
             </Tooltip>
           </div>
-          
+
           {/* New Chat Button with Glass Effect */}
           <button
             onClick={createNewChat}
@@ -807,19 +875,19 @@ export default function Chat({ themeMode, onThemeChange }) {
               fontWeight: 500,
               transition: "all 0.2s ease",
               backdropFilter: "blur(10px)",
-              boxShadow: isDark 
+              boxShadow: isDark
                 ? "0 4px 12px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.05)"
                 : "0 4px 12px rgba(16,163,127,0.1), inset 0 1px 0 rgba(255,255,255,0.5)",
             }}
             onMouseOver={(e) => {
               e.target.style.transform = "translateY(-1px)";
-              e.target.style.boxShadow = isDark 
+              e.target.style.boxShadow = isDark
                 ? "0 6px 16px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.08)"
                 : "0 6px 16px rgba(16,163,127,0.15), inset 0 1px 0 rgba(255,255,255,0.7)";
             }}
             onMouseOut={(e) => {
               e.target.style.transform = "translateY(0)";
-              e.target.style.boxShadow = isDark 
+              e.target.style.boxShadow = isDark
                 ? "0 4px 12px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.05)"
                 : "0 4px 12px rgba(16,163,127,0.1), inset 0 1px 0 rgba(255,255,255,0.5)";
             }}
@@ -848,8 +916,13 @@ export default function Chat({ themeMode, onThemeChange }) {
                 padding: "12px 14px",
                 margin: "4px 0",
                 borderRadius: 12,
-                background: chat.id === currentChatId ? palette.sidebarHover : "transparent",
-                border: `1px solid ${chat.id === currentChatId ? palette.border : "transparent"}`,
+                background:
+                  chat.id === currentChatId
+                    ? palette.sidebarHover
+                    : "transparent",
+                border: `1px solid ${
+                  chat.id === currentChatId ? palette.border : "transparent"
+                }`,
                 cursor: "pointer",
                 display: "flex",
                 alignItems: "center",
@@ -868,8 +941,18 @@ export default function Chat({ themeMode, onThemeChange }) {
                 }
               }}
             >
-              <div style={{ display: "flex", alignItems: "center", gap: 10, flex: 1, minWidth: 0 }}>
-                <MessageOutlined style={{ color: palette.icon, fontSize: 16, flexShrink: 0 }} />
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 10,
+                  flex: 1,
+                  minWidth: 0,
+                }}
+              >
+                <MessageOutlined
+                  style={{ color: palette.icon, fontSize: 16, flexShrink: 0 }}
+                />
                 <Text
                   style={{
                     color: palette.text,
@@ -894,8 +977,8 @@ export default function Chat({ themeMode, onThemeChange }) {
                   transition: "color 0.2s ease",
                   flexShrink: 0,
                 }}
-                onMouseOver={(e) => e.target.style.color = "#ff6f61"}
-                onMouseOut={(e) => e.target.style.color = palette.hint}
+                onMouseOver={(e) => (e.target.style.color = "#ff6f61")}
+                onMouseOut={(e) => (e.target.style.color = palette.hint)}
               />
             </div>
           ))}
@@ -933,7 +1016,13 @@ export default function Chat({ themeMode, onThemeChange }) {
               flexWrap: "wrap",
             }}
           >
-            <div style={{ display: "flex", alignItems: "center", gap: isMobile ? 8 : 12 }}>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: isMobile ? 8 : 12,
+              }}
+            >
               {!sidebarOpen && (
                 <Tooltip title="Open sidebar">
                   <span
@@ -953,7 +1042,7 @@ export default function Chat({ themeMode, onThemeChange }) {
                   </span>
                 </Tooltip>
               )}
-              
+
               {/* Show mini logo/title when sidebar is closed */}
               {!sidebarOpen && (
                 <>
@@ -974,7 +1063,10 @@ export default function Chat({ themeMode, onThemeChange }) {
                     <img
                       src={wowziriLogo}
                       alt="Wowziri logo"
-                      style={{ width: isMobile ? 24 : 28, height: isMobile ? 24 : 28 }}
+                      style={{
+                        width: isMobile ? 24 : 28,
+                        height: isMobile ? 24 : 28,
+                      }}
                     />
                   </div>
                   {!isMobile && (
@@ -992,7 +1084,7 @@ export default function Chat({ themeMode, onThemeChange }) {
                         Wowziri
                       </Title>
                       <Text style={{ color: palette.hint, fontSize: 11 }}>
-                        AI Assistant
+                        Where "Amazing" ideas are generated
                       </Text>
                     </div>
                   )}
@@ -1007,7 +1099,9 @@ export default function Chat({ themeMode, onThemeChange }) {
               }}
             >
               <Tooltip
-                title={voiceEnabled ? "Disable voice output" : "Enable voice output"}
+                title={
+                  voiceEnabled ? "Disable voice output" : "Enable voice output"
+                }
               >
                 <span
                   role="button"
@@ -1076,13 +1170,15 @@ export default function Chat({ themeMode, onThemeChange }) {
                     level={2}
                     style={{
                       color: palette.text,
-                      fontSize: isMobile ? "clamp(22px, 6vw, 28px)" : "clamp(26px, 5vw, 40px)",
+                      fontSize: isMobile
+                        ? "clamp(22px, 6vw, 28px)"
+                        : "clamp(26px, 5vw, 40px)",
                       marginBottom: 12,
                     }}
                   >
                     Ask anything..
                   </Title>
-                 
+
                   <div
                     style={{
                       marginTop: 28,
@@ -1095,11 +1191,14 @@ export default function Chat({ themeMode, onThemeChange }) {
                       <Text
                         key={prompt}
                         style={{
-                          position: idx === promptIndex ? "relative" : "absolute",
+                          position:
+                            idx === promptIndex ? "relative" : "absolute",
                           inset: 0,
                           opacity: promptIndex === idx ? 1 : 0,
                           transform:
-                            promptIndex === idx ? "translateY(0)" : "translateY(12px)",
+                            promptIndex === idx
+                              ? "translateY(0)"
+                              : "translateY(12px)",
                           transition: "opacity 0.6s ease, transform 0.6s ease",
                           color: "white",
                           fontSize: TYPE_SCALE.subhead,
@@ -1131,7 +1230,9 @@ export default function Chat({ themeMode, onThemeChange }) {
                   background: palette.composer,
                   borderRadius: isMobile ? 24 : 34,
                   border: `1px solid ${palette.border}`,
-                  padding: isMobile ? "12px 90px 14px 16px" : "16px 120px 18px 22px",
+                  padding: isMobile
+                    ? "12px 90px 14px 16px"
+                    : "16px 120px 18px 22px",
                   backdropFilter: "blur(18px)",
                   boxShadow: isDark
                     ? "0 30px 60px rgba(0,0,0,0.45)"
@@ -1165,7 +1266,9 @@ export default function Chat({ themeMode, onThemeChange }) {
                 >
                   <Tooltip
                     title={
-                      isRecording ? "Stop recording" : "Voice input (push to talk)"
+                      isRecording
+                        ? "Stop recording"
+                        : "Voice input (push to talk)"
                     }
                   >
                     <span
@@ -1187,7 +1290,9 @@ export default function Chat({ themeMode, onThemeChange }) {
                   </Tooltip>
                   <Tooltip title="Send message">
                     {isLoading ? (
-                      <LoadingOutlined style={{ fontSize: 20, color: palette.icon }} />
+                      <LoadingOutlined
+                        style={{ fontSize: 20, color: palette.icon }}
+                      />
                     ) : (
                       <span
                         role="button"
@@ -1219,7 +1324,7 @@ export default function Chat({ themeMode, onThemeChange }) {
                   fontSize: TYPE_SCALE.small,
                 }}
               >
-               Matumizi ya AI kupita kiasi ni hatari kwa afya yako
+                Matumizi ya AI kupita kiasi ni hatari kwa afya yako
               </div>
               <div
                 style={{
@@ -1239,11 +1344,14 @@ export default function Chat({ themeMode, onThemeChange }) {
                     color: palette.hint,
                   }}
                 >
-                  Voice input isn't supported in this browser. Try Chrome desktop.
+                  Voice input isn't supported in this browser. Try Chrome
+                  desktop.
                 </Text>
               )}
               {isRecording && (
-                <Text style={{ marginTop: 10, display: "block", color: "#ff6f61" }}>
+                <Text
+                  style={{ marginTop: 10, display: "block", color: "#ff6f61" }}
+                >
                   🎤 Listening…
                 </Text>
               )}
