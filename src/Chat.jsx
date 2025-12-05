@@ -9,6 +9,11 @@ import {
   MoonOutlined,
   SoundOutlined,
   AudioMutedOutlined,
+  PlusOutlined,
+  DeleteOutlined,
+  MessageOutlined,
+  MenuOutlined,
+  CloseOutlined,
 } from "@ant-design/icons";
 import wowziriLogo from "./assets/images/logo.png";
 
@@ -25,29 +30,67 @@ const TYPE_SCALE = {
 
 const conversationWidth = 820;
 
+// Helper function to generate chat title from first message
+const generateChatTitle = (firstMessage) => {
+  if (!firstMessage) return "New Chat";
+  const words = firstMessage.split(" ");
+  return words.slice(0, 5).join(" ") + (words.length > 5 ? "..." : "");
+};
+
 export default function Chat({ themeMode, onThemeChange }) {
+  const [chats, setChats] = useState(() => {
+    const saved = localStorage.getItem("wowziri_chats");
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        console.error("Error loading chats:", e);
+      }
+    }
+    // Create initial chat
+    return [{
+      id: Date.now().toString(),
+      title: "New Chat",
+      messages: [],
+      createdAt: new Date().toISOString(),
+    }];
+  });
+
+  const [currentChatId, setCurrentChatId] = useState(() => chats[0]?.id);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+
+  const currentChat = useMemo(() => 
+    chats.find(chat => chat.id === currentChatId) || chats[0],
+    [chats, currentChatId]
+  );
+
+  // Save chats to localStorage whenever they change
+  useEffect(() => {
+    localStorage.setItem("wowziri_chats", JSON.stringify(chats));
+  }, [chats]);
+
   const {
     messages,
     input,
     setInput,
+    setMessages,
     append,
     handleInputChange,
     handleSubmit,
     isLoading,
   } = useChat({
     api: "/api/chat",
+    initialMessages: currentChat?.messages || [],
     onError: (err) => {
       console.error("❌ Chat error:", err);
       console.error("Error message:", err?.message);
       console.error("Error details:", err);
       
-      // Parse error message to make it user-friendly
       let userMessage = "Wowziri encountered an issue. Please try again.";
       
       try {
         let errorStr = "";
         
-        // Try to parse JSON error message
         if (err?.message) {
           try {
             const errorObj = JSON.parse(err.message);
@@ -57,7 +100,6 @@ export default function Chat({ themeMode, onThemeChange }) {
           }
         }
         
-        // Convert to string if it's not already
         errorStr = String(errorStr || "");
         
         if (errorStr.includes("429") || errorStr.includes("quota") || errorStr.includes("Too Many Requests")) {
@@ -86,7 +128,6 @@ export default function Chat({ themeMode, onThemeChange }) {
       console.log("Response status:", response.status);
       console.log("Response headers:", response.headers);
       
-      // Clear any previous errors on successful response
       if (response.ok) {
         setErrorMeta(null);
       }
@@ -96,6 +137,31 @@ export default function Chat({ themeMode, onThemeChange }) {
       setErrorMeta(null);
     },
   });
+
+  // Sync messages to current chat
+  useEffect(() => {
+    if (messages.length > 0) {
+      setChats(prevChats => prevChats.map(chat => 
+        chat.id === currentChatId 
+          ? { 
+              ...chat, 
+              messages,
+              title: chat.messages.length === 0 && messages.length > 0
+                ? generateChatTitle(messages[0].content)
+                : chat.title
+            }
+          : chat
+      ));
+    }
+  }, [messages, currentChatId]);
+
+  // Load messages when switching chats
+  useEffect(() => {
+    const chat = chats.find(c => c.id === currentChatId);
+    if (chat) {
+      setMessages(chat.messages || []);
+    }
+  }, [currentChatId, setMessages]);
 
   const [isRecording, setIsRecording] = useState(false);
   const [voiceEnabled, setVoiceEnabled] = useState(true);
@@ -135,9 +201,50 @@ export default function Chat({ themeMode, onThemeChange }) {
       userBubble: isDark ? "rgba(18, 63, 52, 0.75)" : "#d7f5ea",
       botBubble: isDark ? "rgba(7,8,14,0.75)" : "#f3f4f9",
       userBorder: isDark ? "rgba(16,163,127,0.6)" : "rgba(16,163,127,0.4)",
+      sidebar: isDark ? "rgba(6,7,15,0.95)" : "#f9fafb",
+      sidebarHover: isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.03)",
     }),
     [isDark],
   );
+
+  // Chat management functions
+  const createNewChat = useCallback(() => {
+    const newChat = {
+      id: Date.now().toString(),
+      title: "New Chat",
+      messages: [],
+      createdAt: new Date().toISOString(),
+    };
+    setChats(prev => [newChat, ...prev]);
+    setCurrentChatId(newChat.id);
+    setMessages([]);
+  }, [setMessages]);
+
+  const deleteChat = useCallback((chatId) => {
+    setChats(prev => {
+      const filtered = prev.filter(c => c.id !== chatId);
+      // If deleting current chat, switch to another
+      if (chatId === currentChatId && filtered.length > 0) {
+        setCurrentChatId(filtered[0].id);
+      }
+      // If no chats left, create a new one
+      if (filtered.length === 0) {
+        const newChat = {
+          id: Date.now().toString(),
+          title: "New Chat",
+          messages: [],
+          createdAt: new Date().toISOString(),
+        };
+        setCurrentChatId(newChat.id);
+        return [newChat];
+      }
+      return filtered;
+    });
+  }, [currentChatId]);
+
+  const switchChat = useCallback((chatId) => {
+    setCurrentChatId(chatId);
+  }, []);
 
   useEffect(() => {
     if (!isBrowser) return undefined;
@@ -529,311 +636,448 @@ export default function Chat({ themeMode, onThemeChange }) {
       style={{
         minHeight: "100vh",
         display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        padding: "32px 16px 40px",
         color: palette.text,
       }}
     >
       {contextHolder}
+      
+      {/* Sidebar */}
       <div
         style={{
-          width: "100%",
-          maxWidth: conversationWidth,
+          width: sidebarOpen ? 280 : 0,
+          background: palette.sidebar,
+          borderRight: `1px solid ${palette.border}`,
           display: "flex",
           flexDirection: "column",
-          gap: 28,
-          flex: 1,
+          transition: "width 0.3s ease",
+          overflow: "hidden",
+          position: "relative",
         }}
       >
-        <header
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: 18,
-            flexWrap: "wrap",
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-            <div
-              style={{
-                width: 54,
-                height: 54,
-                borderRadius: "50%",
-                border: `1px solid ${palette.border}`,
-                background: isDark ? "rgba(255,255,255,0.05)" : "#ffffff",
-                display: "grid",
-                placeItems: "center",
-                boxShadow: isDark
-                  ? "0 10px 26px rgba(0,0,0,0.5)"
-                  : "0 10px 28px rgba(15,23,42,0.12)",
-              }}
-            >
-              <img
-                src={wowziriLogo}
-                alt="Wowziri logo"
-                style={{ width: 36, height: 36 }}
-              />
-            </div>
-            <div>
-              <Title
-                level={2}
-                style={{
-                  margin: 0,
-                  fontSize: "clamp(22px, 3.2vw, 32px)",
-                  color: palette.text,
-                  fontWeight: 600,
-                }}
-              >
-                Wowziri
-              </Title>
-              <Text style={{ color: palette.hint, fontSize: TYPE_SCALE.subhead }}>
-               Where amazing ideas are "generated"
-              </Text>
-            </div>
-          </div>
-          <div
+        {/* New Chat Button */}
+        <div style={{ padding: 16 }}>
+          <button
+            onClick={createNewChat}
             style={{
+              width: "100%",
+              padding: "12px 16px",
+              background: palette.accent,
+              color: "white",
+              border: "none",
+              borderRadius: 12,
               display: "flex",
               alignItems: "center",
-              gap: 10,
+              justifyContent: "center",
+              gap: 8,
+              cursor: "pointer",
+              fontSize: 15,
+              fontWeight: 500,
+              transition: "all 0.2s ease",
             }}
+            onMouseOver={(e) => e.target.style.opacity = "0.9"}
+            onMouseOut={(e) => e.target.style.opacity = "1"}
           >
-            <Tooltip
-              title={voiceEnabled ? "Disable voice output" : "Enable voice output"}
-            >
-              <span
-                role="button"
-                tabIndex={0}
-                onClick={() => setVoiceEnabled((prev) => !prev)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") setVoiceEnabled((prev) => !prev);
-                }}
-                style={{
-                  ...iconButtonBase,
-                  color: voiceEnabled ? palette.accent : palette.icon,
-                  borderColor: voiceEnabled ? palette.accent : palette.border,
-                }}
-              >
-                {voiceEnabled ? <SoundOutlined /> : <AudioMutedOutlined />}
-              </span>
-            </Tooltip>
-            <Tooltip
-              title={isDark ? "Switch to light mode" : "Switch to dark mode"}
-            >
-              <span
-                role="button"
-                tabIndex={0}
-                onClick={handleThemeToggle}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") handleThemeToggle();
-                }}
-                style={iconButtonBase}
-              >
-                {isDark ? <MoonOutlined /> : <BulbOutlined />}
-              </span>
-            </Tooltip>
-          </div>
-        </header>
+            <PlusOutlined />
+            New Chat
+          </button>
+        </div>
 
+        {/* Chat List */}
         <div
           style={{
             flex: 1,
-            display: "flex",
-            flexDirection: "column",
-            gap: 24,
-            paddingBottom: 16,
+            overflowY: "auto",
+            padding: "0 8px 8px 8px",
           }}
         >
+          {chats.map((chat) => (
+            <div
+              key={chat.id}
+              onClick={() => switchChat(chat.id)}
+              style={{
+                padding: "12px 16px",
+                margin: "4px 0",
+                borderRadius: 12,
+                background: chat.id === currentChatId ? palette.sidebarHover : "transparent",
+                border: `1px solid ${chat.id === currentChatId ? palette.border : "transparent"}`,
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 8,
+                transition: "all 0.2s ease",
+              }}
+              onMouseOver={(e) => {
+                if (chat.id !== currentChatId) {
+                  e.currentTarget.style.background = palette.sidebarHover;
+                }
+              }}
+              onMouseOut={(e) => {
+                if (chat.id !== currentChatId) {
+                  e.currentTarget.style.background = "transparent";
+                }
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: 12, flex: 1, minWidth: 0 }}>
+                <MessageOutlined style={{ color: palette.icon, fontSize: 16 }} />
+                <Text
+                  style={{
+                    color: palette.text,
+                    fontSize: 14,
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {chat.title}
+                </Text>
+              </div>
+              {chats.length > 1 && (
+                <DeleteOutlined
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    deleteChat(chat.id);
+                  }}
+                  style={{
+                    color: palette.hint,
+                    fontSize: 14,
+                    padding: 4,
+                    transition: "color 0.2s ease",
+                  }}
+                  onMouseOver={(e) => e.target.style.color = "#ff6f61"}
+                  onMouseOut={(e) => e.target.style.color = palette.hint}
+                />
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Main Content */}
+      <div
+        style={{
+          flex: 1,
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          padding: "32px 16px 40px",
+        }}
+      >
+        <div
+          style={{
+            width: "100%",
+            maxWidth: conversationWidth,
+            display: "flex",
+            flexDirection: "column",
+            gap: 28,
+            flex: 1,
+          }}
+        >
+          <header
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 18,
+              flexWrap: "wrap",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+              <Tooltip title={sidebarOpen ? "Close sidebar" : "Open sidebar"}>
+                <span
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => setSidebarOpen(!sidebarOpen)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") setSidebarOpen(!sidebarOpen);
+                  }}
+                  style={{
+                    ...iconButtonBase,
+                    width: 42,
+                    height: 42,
+                  }}
+                >
+                  {sidebarOpen ? <CloseOutlined /> : <MenuOutlined />}
+                </span>
+              </Tooltip>
+              <div
+                style={{
+                  width: 54,
+                  height: 54,
+                  borderRadius: "50%",
+                  border: `1px solid ${palette.border}`,
+                  background: isDark ? "rgba(255,255,255,0.05)" : "#ffffff",
+                  display: "grid",
+                  placeItems: "center",
+                  boxShadow: isDark
+                    ? "0 10px 26px rgba(0,0,0,0.5)"
+                    : "0 10px 28px rgba(15,23,42,0.12)",
+                }}
+              >
+                <img
+                  src={wowziriLogo}
+                  alt="Wowziri logo"
+                  style={{ width: 36, height: 36 }}
+                />
+              </div>
+              <div>
+                <Title
+                  level={2}
+                  style={{
+                    margin: 0,
+                    fontSize: "clamp(22px, 3.2vw, 32px)",
+                    color: palette.text,
+                    fontWeight: 600,
+                  }}
+                >
+                  Wowziri
+                </Title>
+                <Text style={{ color: palette.hint, fontSize: TYPE_SCALE.subhead }}>
+                 Where amazing ideas are "generated"
+                </Text>
+              </div>
+            </div>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+              }}
+            >
+              <Tooltip
+                title={voiceEnabled ? "Disable voice output" : "Enable voice output"}
+              >
+                <span
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => setVoiceEnabled((prev) => !prev)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") setVoiceEnabled((prev) => !prev);
+                  }}
+                  style={{
+                    ...iconButtonBase,
+                    color: voiceEnabled ? palette.accent : palette.icon,
+                    borderColor: voiceEnabled ? palette.accent : palette.border,
+                  }}
+                >
+                  {voiceEnabled ? <SoundOutlined /> : <AudioMutedOutlined />}
+                </span>
+              </Tooltip>
+              <Tooltip
+                title={isDark ? "Switch to light mode" : "Switch to dark mode"}
+              >
+                <span
+                  role="button"
+                  tabIndex={0}
+                  onClick={handleThemeToggle}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") handleThemeToggle();
+                  }}
+                  style={iconButtonBase}
+                >
+                  {isDark ? <MoonOutlined /> : <BulbOutlined />}
+                </span>
+              </Tooltip>
+            </div>
+          </header>
+
           <div
             style={{
               flex: 1,
               display: "flex",
               flexDirection: "column",
-              gap: 18,
-              overflowY: "auto",
-              paddingRight: 4,
+              gap: 24,
+              paddingBottom: 16,
             }}
-          >
-            {messages.length === 0 ? (
-              <div
-                style={{
-                  margin: "auto",
-                  textAlign: "center",
-                  maxWidth: 560,
-                  padding: "60px 24px",
-                }}
-              >
-                <Title
-                  level={2}
-                  style={{
-                    color: palette.text,
-                    fontSize: "clamp(26px, 5vw, 40px)",
-                    marginBottom: 12,
-                  }}
-                >
-                  Ask anything..
-                </Title>
-               
-                <div
-                  style={{
-                    marginTop: 28,
-                    position: "relative",
-                    height: 32,
-                    overflow: "hidden",
-                  }}
-                >
-                  {demoPrompts.map((prompt, idx) => (
-                    <Text
-                      key={prompt}
-                      style={{
-                        position: idx === promptIndex ? "relative" : "absolute",
-                        inset: 0,
-                        opacity: promptIndex === idx ? 1 : 0,
-                        transform:
-                          promptIndex === idx ? "translateY(0)" : "translateY(12px)",
-                        transition: "opacity 0.6s ease, transform 0.6s ease",
-                        color: "white",
-                        fontSize: TYPE_SCALE.subhead,
-                      }}
-                    >
-                      {prompt}
-                    </Text>
-                  ))}
-                </div>
-              </div>
-            ) : (
-              <>
-                {messages.map(renderMessage)}
-                {waitingForAssistant && renderThinkingBubble()}
-                {renderErrorBubble()}
-              </>
-            )}
-            <div ref={messagesEndRef} />
-          </div>
-
-          <form
-            ref={composerRef}
-            onSubmit={handleSubmit}
-            style={{ marginTop: "auto" }}
           >
             <div
               style={{
-                position: "relative",
-                background: palette.composer,
-                borderRadius: 34,
-                border: `1px solid ${palette.border}`,
-                padding: "16px 120px 18px 22px",
-                backdropFilter: "blur(18px)",
-                boxShadow: isDark
-                  ? "0 30px 60px rgba(0,0,0,0.45)"
-                  : "0 30px 60px rgba(15,23,42,0.12)",
+                flex: 1,
+                display: "flex",
+                flexDirection: "column",
+                gap: 18,
+                overflowY: "auto",
+                paddingRight: 4,
               }}
             >
-              <TextArea
-                value={input}
-                placeholder="Message Wowziri..."
-                autoSize={{ minRows: 1, maxRows: 5 }}
-                onChange={handleInputChange}
-                onKeyDown={handleKeyDown}
-                variant="borderless"
-                disabled={isLoading}
-                style={{
-                  background: "transparent",
-                  color: palette.text,
-                  fontSize: TYPE_SCALE.body,
-                  paddingRight: 96,
-                }}
-              />
-              <div
-                style={{
-                  position: "absolute",
-                  right: 24,
-                  bottom: 16,
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 18,
-                }}
-              >
-                <Tooltip
-                  title={
-                    isRecording ? "Stop recording" : "Voice input (push to talk)"
-                  }
+              {messages.length === 0 ? (
+                <div
+                  style={{
+                    margin: "auto",
+                    textAlign: "center",
+                    maxWidth: 560,
+                    padding: "60px 24px",
+                  }}
                 >
-                  <span
-                    role="button"
-                    tabIndex={0}
-                    onClick={startRecording}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter") startRecording();
-                    }}
+                  <Title
+                    level={2}
                     style={{
-                      cursor: "pointer",
-                      fontSize: 20,
-                      color: isRecording ? "#ff6f61" : palette.icon,
-                      transition: "color 0.2s ease",
+                      color: palette.text,
+                      fontSize: "clamp(26px, 5vw, 40px)",
+                      marginBottom: 12,
                     }}
                   >
-                    <AudioOutlined />
-                  </span>
-                </Tooltip>
-                <Tooltip title="Send message">
-                  {isLoading ? (
-                    <LoadingOutlined style={{ fontSize: 20, color: palette.icon }} />
-                  ) : (
+                    Ask anything..
+                  </Title>
+                 
+                  <div
+                    style={{
+                      marginTop: 28,
+                      position: "relative",
+                      height: 32,
+                      overflow: "hidden",
+                    }}
+                  >
+                    {demoPrompts.map((prompt, idx) => (
+                      <Text
+                        key={prompt}
+                        style={{
+                          position: idx === promptIndex ? "relative" : "absolute",
+                          inset: 0,
+                          opacity: promptIndex === idx ? 1 : 0,
+                          transform:
+                            promptIndex === idx ? "translateY(0)" : "translateY(12px)",
+                          transition: "opacity 0.6s ease, transform 0.6s ease",
+                          color: "white",
+                          fontSize: TYPE_SCALE.subhead,
+                        }}
+                      >
+                        {prompt}
+                      </Text>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <>
+                  {messages.map(renderMessage)}
+                  {waitingForAssistant && renderThinkingBubble()}
+                  {renderErrorBubble()}
+                </>
+              )}
+              <div ref={messagesEndRef} />
+            </div>
+
+            <form
+              ref={composerRef}
+              onSubmit={handleSubmit}
+              style={{ marginTop: "auto" }}
+            >
+              <div
+                style={{
+                  position: "relative",
+                  background: palette.composer,
+                  borderRadius: 34,
+                  border: `1px solid ${palette.border}`,
+                  padding: "16px 120px 18px 22px",
+                  backdropFilter: "blur(18px)",
+                  boxShadow: isDark
+                    ? "0 30px 60px rgba(0,0,0,0.45)"
+                    : "0 30px 60px rgba(15,23,42,0.12)",
+                }}
+              >
+                <TextArea
+                  value={input}
+                  placeholder="Message Wowziri..."
+                  autoSize={{ minRows: 1, maxRows: 5 }}
+                  onChange={handleInputChange}
+                  onKeyDown={handleKeyDown}
+                  variant="borderless"
+                  disabled={isLoading}
+                  style={{
+                    background: "transparent",
+                    color: palette.text,
+                    fontSize: TYPE_SCALE.body,
+                    paddingRight: 96,
+                  }}
+                />
+                <div
+                  style={{
+                    position: "absolute",
+                    right: 24,
+                    bottom: 16,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 18,
+                  }}
+                >
+                  <Tooltip
+                    title={
+                      isRecording ? "Stop recording" : "Voice input (push to talk)"
+                    }
+                  >
                     <span
                       role="button"
                       tabIndex={0}
-                      onClick={() => composerRef.current?.requestSubmit()}
+                      onClick={startRecording}
                       onKeyDown={(event) => {
-                        if (event.key === "Enter") {
-                          composerRef.current?.requestSubmit();
-                        }
+                        if (event.key === "Enter") startRecording();
                       }}
                       style={{
                         cursor: "pointer",
                         fontSize: 20,
-                        color: palette.accent,
-                        display: "inline-flex",
+                        color: isRecording ? "#ff6f61" : palette.icon,
+                        transition: "color 0.2s ease",
                       }}
                     >
-                      <SendOutlined />
+                      <AudioOutlined />
                     </span>
-                  )}
-                </Tooltip>
+                  </Tooltip>
+                  <Tooltip title="Send message">
+                    {isLoading ? (
+                      <LoadingOutlined style={{ fontSize: 20, color: palette.icon }} />
+                    ) : (
+                      <span
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => composerRef.current?.requestSubmit()}
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter") {
+                            composerRef.current?.requestSubmit();
+                          }
+                        }}
+                        style={{
+                          cursor: "pointer",
+                          fontSize: 20,
+                          color: palette.accent,
+                          display: "inline-flex",
+                        }}
+                      >
+                        <SendOutlined />
+                      </span>
+                    )}
+                  </Tooltip>
+                </div>
               </div>
-            </div>
-            <div
-              style={{
-                marginTop: 12,
-                textAlign: "center",
-                color: palette.hint,
-                fontSize: TYPE_SCALE.small,
-              }}
-            >
-              Wowziri may produce inaccurate information. Verify important facts.
-            </div>
-            {!supportsSpeech && (
-              <Text
+              <div
                 style={{
-                  marginTop: 10,
-                  display: "block",
+                  marginTop: 12,
+                  textAlign: "center",
                   color: palette.hint,
+                  fontSize: TYPE_SCALE.small,
                 }}
               >
-                Voice input isn’t supported in this browser. Try Chrome desktop.
-              </Text>
-            )}
-            {isRecording && (
-              <Text style={{ marginTop: 10, display: "block", color: "#ff6f61" }}>
-                🎤 Listening…
-              </Text>
-            )}
-          </form>
+                Wowziri may produce inaccurate information. Verify important facts.
+              </div>
+              {!supportsSpeech && (
+                <Text
+                  style={{
+                    marginTop: 10,
+                    display: "block",
+                    color: palette.hint,
+                  }}
+                >
+                  Voice input isn't supported in this browser. Try Chrome desktop.
+                </Text>
+              )}
+              {isRecording && (
+                <Text style={{ marginTop: 10, display: "block", color: "#ff6f61" }}>
+                  🎤 Listening…
+                </Text>
+              )}
+            </form>
+          </div>
         </div>
       </div>
     </div>
   );
 }
-
