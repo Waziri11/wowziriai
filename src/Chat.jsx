@@ -42,21 +42,17 @@ export default function Chat({ themeMode, onThemeChange }) {
     const saved = localStorage.getItem("wowziri_chats");
     if (saved) {
       try {
-        return JSON.parse(saved);
+        const parsed = JSON.parse(saved);
+        return parsed.length > 0 ? parsed : [];
       } catch (e) {
         console.error("Error loading chats:", e);
       }
     }
-    // Create initial chat
-    return [{
-      id: Date.now().toString(),
-      title: "New Chat",
-      messages: [],
-      createdAt: new Date().toISOString(),
-    }];
+    // Start with no chats - will be created on first message
+    return [];
   });
 
-  const [currentChatId, setCurrentChatId] = useState(() => chats[0]?.id);
+  const [currentChatId, setCurrentChatId] = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
 
@@ -75,7 +71,7 @@ export default function Chat({ themeMode, onThemeChange }) {
   }, []);
 
   const currentChat = useMemo(() => 
-    chats.find(chat => chat.id === currentChatId) || chats[0],
+    chats.find(chat => chat.id === currentChatId) || null,
     [chats, currentChatId]
   );
 
@@ -91,11 +87,15 @@ export default function Chat({ themeMode, onThemeChange }) {
     setMessages,
     append,
     handleInputChange,
-    handleSubmit,
+    handleSubmit: originalHandleSubmit,
     isLoading,
   } = useChat({
     api: "/api/chat",
     initialMessages: currentChat?.messages || [],
+    onFinish: (message) => {
+      console.log("✅ Message finished:", message);
+      setErrorMeta(null);
+    },
     onError: (err) => {
       console.error("❌ Chat error:", err);
       console.error("Error message:", err?.message);
@@ -147,11 +147,27 @@ export default function Chat({ themeMode, onThemeChange }) {
         setErrorMeta(null);
       }
     },
-    onFinish: (message) => {
-      console.log("✅ Message finished:", message);
-      setErrorMeta(null);
-    },
   });
+
+  // Custom submit handler to create chat on first message
+  const handleSubmit = useCallback((e) => {
+    e?.preventDefault();
+    
+    // If no current chat exists, create one
+    if (!currentChatId && input.trim()) {
+      const newChat = {
+        id: Date.now().toString(),
+        title: "New Chat",
+        messages: [],
+        createdAt: new Date().toISOString(),
+      };
+      setChats(prev => [newChat, ...prev]);
+      setCurrentChatId(newChat.id);
+    }
+    
+    // Call original submit
+    originalHandleSubmit(e);
+  }, [currentChatId, input, originalHandleSubmit]);
 
   // Sync messages to current chat
   useEffect(() => {
@@ -242,24 +258,18 @@ export default function Chat({ themeMode, onThemeChange }) {
   const deleteChat = useCallback((chatId) => {
     setChats(prev => {
       const filtered = prev.filter(c => c.id !== chatId);
-      // If deleting current chat, switch to another
-      if (chatId === currentChatId && filtered.length > 0) {
-        setCurrentChatId(filtered[0].id);
-      }
-      // If no chats left, create a new one
-      if (filtered.length === 0) {
-        const newChat = {
-          id: Date.now().toString(),
-          title: "New Chat",
-          messages: [],
-          createdAt: new Date().toISOString(),
-        };
-        setCurrentChatId(newChat.id);
-        return [newChat];
+      // If deleting current chat, switch to another or clear
+      if (chatId === currentChatId) {
+        if (filtered.length > 0) {
+          setCurrentChatId(filtered[0].id);
+        } else {
+          setCurrentChatId(null);
+          setMessages([]);
+        }
       }
       return filtered;
     });
-  }, [currentChatId]);
+  }, [currentChatId, setMessages]);
 
   const switchChat = useCallback((chatId) => {
     setCurrentChatId(chatId);
@@ -701,44 +711,81 @@ export default function Chat({ themeMode, onThemeChange }) {
       >
         {/* Logo and Title in Sidebar */}
         <div style={{ padding: "20px 16px 16px 16px", borderBottom: `1px solid ${palette.border}` }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
-            <div
-              style={{
-                width: 42,
-                height: 42,
-                borderRadius: "50%",
-                border: `1px solid ${palette.border}`,
-                background: isDark ? "rgba(255,255,255,0.05)" : "#ffffff",
-                display: "grid",
-                placeItems: "center",
-                boxShadow: isDark
-                  ? "0 4px 12px rgba(0,0,0,0.3)"
-                  : "0 4px 12px rgba(15,23,42,0.08)",
-              }}
-            >
-              <img
-                src={wowziriLogo}
-                alt="Wowziri logo"
-                style={{ width: 28, height: 28 }}
-              />
-            </div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <Title
-                level={3}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <div
                 style={{
-                  margin: 0,
-                  fontSize: 20,
-                  color: palette.text,
-                  fontWeight: 600,
-                  lineHeight: 1.2,
+                  width: 42,
+                  height: 42,
+                  borderRadius: "50%",
+                  border: `1px solid ${palette.border}`,
+                  background: isDark ? "rgba(255,255,255,0.05)" : "#ffffff",
+                  display: "grid",
+                  placeItems: "center",
+                  boxShadow: isDark
+                    ? "0 4px 12px rgba(0,0,0,0.3)"
+                    : "0 4px 12px rgba(15,23,42,0.08)",
                 }}
               >
-                Wowziri
-              </Title>
-              <Text style={{ color: palette.hint, fontSize: 12, lineHeight: 1.3 }}>
-                AI-powered assistant
-              </Text>
+                <img
+                  src={wowziriLogo}
+                  alt="Wowziri logo"
+                  style={{ width: 28, height: 28 }}
+                />
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <Title
+                  level={3}
+                  style={{
+                    margin: 0,
+                    fontSize: 20,
+                    color: palette.text,
+                    fontWeight: 600,
+                    lineHeight: 1.2,
+                  }}
+                >
+                  Wowziri
+                </Title>
+                <Text style={{ color: palette.hint, fontSize: 12, lineHeight: 1.3 }}>
+                  AI-powered assistant
+                </Text>
+              </div>
             </div>
+            
+            {/* Close button in sidebar */}
+            <Tooltip title="Close sidebar">
+              <span
+                role="button"
+                tabIndex={0}
+                onClick={() => setSidebarOpen(false)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") setSidebarOpen(false);
+                }}
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: 10,
+                  border: `1px solid ${palette.border}`,
+                  background: isDark ? "rgba(7,8,14,0.75)" : "rgba(255,255,255,0.9)",
+                  display: "grid",
+                  placeItems: "center",
+                  cursor: "pointer",
+                  color: palette.icon,
+                  transition: "all 0.2s ease",
+                  flexShrink: 0,
+                }}
+                onMouseOver={(e) => {
+                  e.currentTarget.style.background = palette.sidebarHover;
+                  e.currentTarget.style.borderColor = palette.accent;
+                }}
+                onMouseOut={(e) => {
+                  e.currentTarget.style.background = isDark ? "rgba(7,8,14,0.75)" : "rgba(255,255,255,0.9)";
+                  e.currentTarget.style.borderColor = palette.border;
+                }}
+              >
+                <CloseOutlined style={{ fontSize: 14 }} />
+              </span>
+            </Tooltip>
           </div>
           
           {/* New Chat Button with Glass Effect */}
@@ -835,23 +882,21 @@ export default function Chat({ themeMode, onThemeChange }) {
                   {chat.title}
                 </Text>
               </div>
-              {chats.length > 1 && (
-                <DeleteOutlined
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    deleteChat(chat.id);
-                  }}
-                  style={{
-                    color: palette.hint,
-                    fontSize: 14,
-                    padding: 4,
-                    transition: "color 0.2s ease",
-                    flexShrink: 0,
-                  }}
-                  onMouseOver={(e) => e.target.style.color = "#ff6f61"}
-                  onMouseOut={(e) => e.target.style.color = palette.hint}
-                />
-              )}
+              <DeleteOutlined
+                onClick={(e) => {
+                  e.stopPropagation();
+                  deleteChat(chat.id);
+                }}
+                style={{
+                  color: palette.hint,
+                  fontSize: 14,
+                  padding: 4,
+                  transition: "color 0.2s ease",
+                  flexShrink: 0,
+                }}
+                onMouseOver={(e) => e.target.style.color = "#ff6f61"}
+                onMouseOut={(e) => e.target.style.color = palette.hint}
+              />
             </div>
           ))}
         </div>
@@ -889,23 +934,25 @@ export default function Chat({ themeMode, onThemeChange }) {
             }}
           >
             <div style={{ display: "flex", alignItems: "center", gap: isMobile ? 8 : 12 }}>
-              <Tooltip title={sidebarOpen ? "Close sidebar" : "Open sidebar"}>
-                <span
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => setSidebarOpen(!sidebarOpen)}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter") setSidebarOpen(!sidebarOpen);
-                  }}
-                  style={{
-                    ...iconButtonBase,
-                    width: isMobile ? 38 : 42,
-                    height: isMobile ? 38 : 42,
-                  }}
-                >
-                  <MenuOutlined />
-                </span>
-              </Tooltip>
+              {!sidebarOpen && (
+                <Tooltip title="Open sidebar">
+                  <span
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => setSidebarOpen(true)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") setSidebarOpen(true);
+                    }}
+                    style={{
+                      ...iconButtonBase,
+                      width: isMobile ? 38 : 42,
+                      height: isMobile ? 38 : 42,
+                    }}
+                  >
+                    <MenuOutlined />
+                  </span>
+                </Tooltip>
+              )}
               
               {/* Show mini logo/title when sidebar is closed */}
               {!sidebarOpen && (
@@ -1172,7 +1219,17 @@ export default function Chat({ themeMode, onThemeChange }) {
                   fontSize: TYPE_SCALE.small,
                 }}
               >
-                Wowziri may produce inaccurate information. Verify important facts.
+               Matumizi ya AI kupita kiasi ni hatari kwa afya yako
+              </div>
+              <div
+                style={{
+                  marginTop: 16,
+                  textAlign: "center",
+                  color: palette.hint,
+                  fontSize: TYPE_SCALE.small,
+                }}
+              >
+                Made in Tanzania &copy; 2025
               </div>
               {!supportsSpeech && (
                 <Text
