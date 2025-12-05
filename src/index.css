@@ -18,6 +18,14 @@ body {
     #05060a;
   color: #f5f7ff;
   padding: 0;
+  overflow-x: hidden;
+}
+
+body.light-mode {
+  background: radial-gradient(circle at 20% 20%, rgba(16, 163, 127, 0.15), transparent 55%),
+    radial-gradient(circle at 80% 0%, rgba(47, 128, 237, 0.1), transparent 45%),
+    #f8f9ff;
+  color: #0f172a;
 }
 
 #root {
@@ -33,3 +41,52 @@ textarea.ant-input {
   color: #ffffff;
 }
 
+/* Custom scrollbar styles */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+body.light-mode ::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.1);
+}
+
+body.light-mode ::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.2);
+}
+
+/* Smooth transitions */
+* {
+  scroll-behavior: smooth;
+}
+
+/* Mobile optimizations */
+@media (max-width: 768px) {
+  body {
+    font-size: 16px; /* Prevents zoom on input focus in iOS */
+  }
+  
+  input, textarea {
+    font-size: 16px !important; /* Prevents zoom on input focus in iOS */
+  }
+}
+
+/* Tablet optimizations */
+@media (min-width: 769px) and (max-width: 1024px) {
+  body {
+    font-size: 15px;
+  }
+}

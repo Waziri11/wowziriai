@@ -58,6 +58,21 @@ export default function Chat({ themeMode, onThemeChange }) {
 
   const [currentChatId, setCurrentChatId] = useState(() => chats[0]?.id);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [isMobile, setIsMobile] = useState(false);
+
+  // Detect screen size for responsive behavior
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+      if (window.innerWidth < 768) {
+        setSidebarOpen(false);
+      }
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   const currentChat = useMemo(() => 
     chats.find(chat => chat.id === currentChatId) || chats[0],
@@ -203,6 +218,10 @@ export default function Chat({ themeMode, onThemeChange }) {
       userBorder: isDark ? "rgba(16,163,127,0.6)" : "rgba(16,163,127,0.4)",
       sidebar: isDark ? "rgba(6,7,15,0.95)" : "#f9fafb",
       sidebarHover: isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.03)",
+      newChatBtn: isDark 
+        ? "linear-gradient(135deg, rgba(6, 20, 16, 0.8), rgba(16, 163, 127, 0.15))"
+        : "linear-gradient(135deg, rgba(16, 163, 127, 0.1), rgba(6, 20, 16, 0.05))",
+      newChatBorder: isDark ? "rgba(16, 163, 127, 0.3)" : "rgba(16, 163, 127, 0.25)",
     }),
     [isDark],
   );
@@ -406,27 +425,28 @@ export default function Chat({ themeMode, onThemeChange }) {
           style={{
             display: "grid",
             gridTemplateColumns: isUser ? "1fr auto" : "auto 1fr",
-            gap: 16,
-            maxWidth: "90%",
+            gap: isMobile ? 10 : 16,
+            maxWidth: isMobile ? "95%" : "90%",
             alignItems: "flex-start",
           }}
         >
           {!isUser && (
             <div
               style={{
-                width: 42,
-                height: 42,
+                width: isMobile ? 32 : 42,
+                height: isMobile ? 32 : 42,
                 borderRadius: "50%",
                 background: "rgba(255,255,255,0.04)",
                 border: `1px solid ${palette.border}`,
                 display: "grid",
                 placeItems: "center",
+                flexShrink: 0,
               }}
             >
               <img
                 src={wowziriLogo}
                 alt="Wowziri avatar"
-                style={{ width: 28, height: 28 }}
+                style={{ width: isMobile ? 20 : 28, height: isMobile ? 20 : 28 }}
               />
             </div>
           )}
@@ -436,19 +456,20 @@ export default function Chat({ themeMode, onThemeChange }) {
               border: `1px solid ${
                 isUser ? palette.userBorder : palette.border
               }`,
-              borderRadius: 24,
-              padding: "18px 24px",
+              borderRadius: isMobile ? 18 : 24,
+              padding: isMobile ? "14px 18px" : "18px 24px",
               color: palette.text,
-              fontSize: TYPE_SCALE.bubble,
+              fontSize: isMobile ? 16 : TYPE_SCALE.bubble,
               lineHeight: 1.65,
-              minWidth: 200,
+              minWidth: isMobile ? 100 : 200,
               whiteSpace: "pre-wrap",
+              wordBreak: "break-word",
             }}
           >
             <Text
               strong
               style={{
-                fontSize: 15,
+                fontSize: isMobile ? 13 : 15,
                 color: palette.accent,
                 display: "block",
                 marginBottom: 6,
@@ -461,8 +482,8 @@ export default function Chat({ themeMode, onThemeChange }) {
           {isUser && (
             <div
               style={{
-                width: 42,
-                height: 42,
+                width: isMobile ? 32 : 42,
+                height: isMobile ? 32 : 42,
                 borderRadius: "50%",
                 background: "rgba(16,163,127,0.14)",
                 border: `1px solid ${palette.userBorder}`,
@@ -470,6 +491,8 @@ export default function Chat({ themeMode, onThemeChange }) {
                 placeItems: "center",
                 color: palette.accent,
                 fontWeight: 600,
+                fontSize: isMobile ? 14 : 16,
+                flexShrink: 0,
               }}
             >
               Y
@@ -618,9 +641,9 @@ export default function Chat({ themeMode, onThemeChange }) {
     );
   };
 
-  const iconButtonBase = {
-    width: 48,
-    height: 48,
+  const iconButtonBase = useMemo(() => ({
+    width: isMobile ? 38 : 48,
+    height: isMobile ? 38 : 48,
     borderRadius: 16,
     border: `1px solid ${palette.border}`,
     background: isDark ? "rgba(7,8,14,0.75)" : "rgba(255,255,255,0.9)",
@@ -629,7 +652,8 @@ export default function Chat({ themeMode, onThemeChange }) {
     cursor: "pointer",
     color: palette.icon,
     transition: "all 0.2s ease",
-  };
+    fontSize: isMobile ? 16 : 18,
+  }), [isMobile, palette, isDark]);
 
   return (
     <div
@@ -637,33 +661,95 @@ export default function Chat({ themeMode, onThemeChange }) {
         minHeight: "100vh",
         display: "flex",
         color: palette.text,
+        position: "relative",
       }}
     >
       {contextHolder}
       
+      {/* Mobile Overlay */}
+      {isMobile && sidebarOpen && (
+        <div
+          onClick={() => setSidebarOpen(false)}
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.5)",
+            zIndex: 998,
+            backdropFilter: "blur(2px)",
+          }}
+        />
+      )}
+      
       {/* Sidebar */}
       <div
         style={{
-          width: sidebarOpen ? 280 : 0,
+          width: sidebarOpen ? (isMobile ? "85%" : 300) : 0,
+          maxWidth: isMobile ? 320 : "none",
           background: palette.sidebar,
           borderRight: `1px solid ${palette.border}`,
           display: "flex",
           flexDirection: "column",
-          transition: "width 0.3s ease",
+          transition: "width 0.3s ease, transform 0.3s ease",
           overflow: "hidden",
-          position: "relative",
+          position: isMobile ? "fixed" : "relative",
+          height: isMobile ? "100vh" : "auto",
+          zIndex: 999,
+          left: 0,
+          top: 0,
+          backdropFilter: "blur(10px)",
         }}
       >
-        {/* New Chat Button */}
-        <div style={{ padding: 16 }}>
+        {/* Logo and Title in Sidebar */}
+        <div style={{ padding: "20px 16px 16px 16px", borderBottom: `1px solid ${palette.border}` }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
+            <div
+              style={{
+                width: 42,
+                height: 42,
+                borderRadius: "50%",
+                border: `1px solid ${palette.border}`,
+                background: isDark ? "rgba(255,255,255,0.05)" : "#ffffff",
+                display: "grid",
+                placeItems: "center",
+                boxShadow: isDark
+                  ? "0 4px 12px rgba(0,0,0,0.3)"
+                  : "0 4px 12px rgba(15,23,42,0.08)",
+              }}
+            >
+              <img
+                src={wowziriLogo}
+                alt="Wowziri logo"
+                style={{ width: 28, height: 28 }}
+              />
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <Title
+                level={3}
+                style={{
+                  margin: 0,
+                  fontSize: 20,
+                  color: palette.text,
+                  fontWeight: 600,
+                  lineHeight: 1.2,
+                }}
+              >
+                Wowziri
+              </Title>
+              <Text style={{ color: palette.hint, fontSize: 12, lineHeight: 1.3 }}>
+                AI-powered assistant
+              </Text>
+            </div>
+          </div>
+          
+          {/* New Chat Button with Glass Effect */}
           <button
             onClick={createNewChat}
             style={{
               width: "100%",
               padding: "12px 16px",
-              background: palette.accent,
-              color: "white",
-              border: "none",
+              background: palette.newChatBtn,
+              color: palette.text,
+              border: `1px solid ${palette.newChatBorder}`,
               borderRadius: 12,
               display: "flex",
               alignItems: "center",
@@ -673,12 +759,26 @@ export default function Chat({ themeMode, onThemeChange }) {
               fontSize: 15,
               fontWeight: 500,
               transition: "all 0.2s ease",
+              backdropFilter: "blur(10px)",
+              boxShadow: isDark 
+                ? "0 4px 12px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.05)"
+                : "0 4px 12px rgba(16,163,127,0.1), inset 0 1px 0 rgba(255,255,255,0.5)",
             }}
-            onMouseOver={(e) => e.target.style.opacity = "0.9"}
-            onMouseOut={(e) => e.target.style.opacity = "1"}
+            onMouseOver={(e) => {
+              e.target.style.transform = "translateY(-1px)";
+              e.target.style.boxShadow = isDark 
+                ? "0 6px 16px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.08)"
+                : "0 6px 16px rgba(16,163,127,0.15), inset 0 1px 0 rgba(255,255,255,0.7)";
+            }}
+            onMouseOut={(e) => {
+              e.target.style.transform = "translateY(0)";
+              e.target.style.boxShadow = isDark 
+                ? "0 4px 12px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.05)"
+                : "0 4px 12px rgba(16,163,127,0.1), inset 0 1px 0 rgba(255,255,255,0.5)";
+            }}
           >
-            <PlusOutlined />
-            New Chat
+            <PlusOutlined style={{ color: palette.accent }} />
+            <span style={{ color: palette.text }}>New Chat</span>
           </button>
         </div>
 
@@ -687,15 +787,18 @@ export default function Chat({ themeMode, onThemeChange }) {
           style={{
             flex: 1,
             overflowY: "auto",
-            padding: "0 8px 8px 8px",
+            padding: "8px",
           }}
         >
           {chats.map((chat) => (
             <div
               key={chat.id}
-              onClick={() => switchChat(chat.id)}
+              onClick={() => {
+                switchChat(chat.id);
+                if (isMobile) setSidebarOpen(false);
+              }}
               style={{
-                padding: "12px 16px",
+                padding: "12px 14px",
                 margin: "4px 0",
                 borderRadius: 12,
                 background: chat.id === currentChatId ? palette.sidebarHover : "transparent",
@@ -718,8 +821,8 @@ export default function Chat({ themeMode, onThemeChange }) {
                 }
               }}
             >
-              <div style={{ display: "flex", alignItems: "center", gap: 12, flex: 1, minWidth: 0 }}>
-                <MessageOutlined style={{ color: palette.icon, fontSize: 16 }} />
+              <div style={{ display: "flex", alignItems: "center", gap: 10, flex: 1, minWidth: 0 }}>
+                <MessageOutlined style={{ color: palette.icon, fontSize: 16, flexShrink: 0 }} />
                 <Text
                   style={{
                     color: palette.text,
@@ -743,6 +846,7 @@ export default function Chat({ themeMode, onThemeChange }) {
                     fontSize: 14,
                     padding: 4,
                     transition: "color 0.2s ease",
+                    flexShrink: 0,
                   }}
                   onMouseOver={(e) => e.target.style.color = "#ff6f61"}
                   onMouseOut={(e) => e.target.style.color = palette.hint}
@@ -760,7 +864,8 @@ export default function Chat({ themeMode, onThemeChange }) {
           display: "flex",
           flexDirection: "column",
           alignItems: "center",
-          padding: "32px 16px 40px",
+          padding: isMobile ? "16px 12px 20px" : "32px 16px 40px",
+          minWidth: 0,
         }}
       >
         <div
@@ -769,8 +874,9 @@ export default function Chat({ themeMode, onThemeChange }) {
             maxWidth: conversationWidth,
             display: "flex",
             flexDirection: "column",
-            gap: 28,
+            gap: isMobile ? 16 : 28,
             flex: 1,
+            minHeight: 0,
           }}
         >
           <header
@@ -778,11 +884,11 @@ export default function Chat({ themeMode, onThemeChange }) {
               display: "flex",
               alignItems: "center",
               justifyContent: "space-between",
-              gap: 18,
+              gap: 12,
               flexWrap: "wrap",
             }}
           >
-            <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: isMobile ? 8 : 12 }}>
               <Tooltip title={sidebarOpen ? "Close sidebar" : "Open sidebar"}>
                 <span
                   role="button"
@@ -793,55 +899,64 @@ export default function Chat({ themeMode, onThemeChange }) {
                   }}
                   style={{
                     ...iconButtonBase,
-                    width: 42,
-                    height: 42,
+                    width: isMobile ? 38 : 42,
+                    height: isMobile ? 38 : 42,
                   }}
                 >
-                  {sidebarOpen ? <CloseOutlined /> : <MenuOutlined />}
+                  <MenuOutlined />
                 </span>
               </Tooltip>
-              <div
-                style={{
-                  width: 54,
-                  height: 54,
-                  borderRadius: "50%",
-                  border: `1px solid ${palette.border}`,
-                  background: isDark ? "rgba(255,255,255,0.05)" : "#ffffff",
-                  display: "grid",
-                  placeItems: "center",
-                  boxShadow: isDark
-                    ? "0 10px 26px rgba(0,0,0,0.5)"
-                    : "0 10px 28px rgba(15,23,42,0.12)",
-                }}
-              >
-                <img
-                  src={wowziriLogo}
-                  alt="Wowziri logo"
-                  style={{ width: 36, height: 36 }}
-                />
-              </div>
-              <div>
-                <Title
-                  level={2}
-                  style={{
-                    margin: 0,
-                    fontSize: "clamp(22px, 3.2vw, 32px)",
-                    color: palette.text,
-                    fontWeight: 600,
-                  }}
-                >
-                  Wowziri
-                </Title>
-                <Text style={{ color: palette.hint, fontSize: TYPE_SCALE.subhead }}>
-                 Where amazing ideas are "generated"
-                </Text>
-              </div>
+              
+              {/* Show mini logo/title when sidebar is closed */}
+              {!sidebarOpen && (
+                <>
+                  <div
+                    style={{
+                      width: isMobile ? 36 : 42,
+                      height: isMobile ? 36 : 42,
+                      borderRadius: "50%",
+                      border: `1px solid ${palette.border}`,
+                      background: isDark ? "rgba(255,255,255,0.05)" : "#ffffff",
+                      display: "grid",
+                      placeItems: "center",
+                      boxShadow: isDark
+                        ? "0 4px 12px rgba(0,0,0,0.3)"
+                        : "0 4px 12px rgba(15,23,42,0.08)",
+                    }}
+                  >
+                    <img
+                      src={wowziriLogo}
+                      alt="Wowziri logo"
+                      style={{ width: isMobile ? 24 : 28, height: isMobile ? 24 : 28 }}
+                    />
+                  </div>
+                  {!isMobile && (
+                    <div>
+                      <Title
+                        level={3}
+                        style={{
+                          margin: 0,
+                          fontSize: 18,
+                          color: palette.text,
+                          fontWeight: 600,
+                          lineHeight: 1.2,
+                        }}
+                      >
+                        Wowziri
+                      </Title>
+                      <Text style={{ color: palette.hint, fontSize: 11 }}>
+                        AI Assistant
+                      </Text>
+                    </div>
+                  )}
+                </>
+              )}
             </div>
             <div
               style={{
                 display: "flex",
                 alignItems: "center",
-                gap: 10,
+                gap: isMobile ? 6 : 10,
               }}
             >
               <Tooltip
@@ -895,9 +1010,10 @@ export default function Chat({ themeMode, onThemeChange }) {
                 flex: 1,
                 display: "flex",
                 flexDirection: "column",
-                gap: 18,
+                gap: isMobile ? 12 : 18,
                 overflowY: "auto",
-                paddingRight: 4,
+                paddingRight: isMobile ? 0 : 4,
+                minHeight: 0,
               }}
             >
               {messages.length === 0 ? (
@@ -906,14 +1022,14 @@ export default function Chat({ themeMode, onThemeChange }) {
                     margin: "auto",
                     textAlign: "center",
                     maxWidth: 560,
-                    padding: "60px 24px",
+                    padding: isMobile ? "40px 16px" : "60px 24px",
                   }}
                 >
                   <Title
                     level={2}
                     style={{
                       color: palette.text,
-                      fontSize: "clamp(26px, 5vw, 40px)",
+                      fontSize: isMobile ? "clamp(22px, 6vw, 28px)" : "clamp(26px, 5vw, 40px)",
                       marginBottom: 12,
                     }}
                   >
@@ -966,9 +1082,9 @@ export default function Chat({ themeMode, onThemeChange }) {
                 style={{
                   position: "relative",
                   background: palette.composer,
-                  borderRadius: 34,
+                  borderRadius: isMobile ? 24 : 34,
                   border: `1px solid ${palette.border}`,
-                  padding: "16px 120px 18px 22px",
+                  padding: isMobile ? "12px 90px 14px 16px" : "16px 120px 18px 22px",
                   backdropFilter: "blur(18px)",
                   boxShadow: isDark
                     ? "0 30px 60px rgba(0,0,0,0.45)"
@@ -986,18 +1102,18 @@ export default function Chat({ themeMode, onThemeChange }) {
                   style={{
                     background: "transparent",
                     color: palette.text,
-                    fontSize: TYPE_SCALE.body,
-                    paddingRight: 96,
+                    fontSize: isMobile ? 16 : TYPE_SCALE.body,
+                    paddingRight: isMobile ? 70 : 96,
                   }}
                 />
                 <div
                   style={{
                     position: "absolute",
-                    right: 24,
-                    bottom: 16,
+                    right: isMobile ? 16 : 24,
+                    bottom: isMobile ? 14 : 16,
                     display: "flex",
                     alignItems: "center",
-                    gap: 18,
+                    gap: isMobile ? 12 : 18,
                   }}
                 >
                   <Tooltip
