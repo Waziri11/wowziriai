@@ -13,65 +13,15 @@
 body {
   margin: 0;
   min-height: 100vh;
-  background-color: #05060a;
+  background: radial-gradient(circle at 20% 20%, rgba(16, 163, 127, 0.25), transparent 55%),
+    radial-gradient(circle at 80% 0%, rgba(47, 128, 237, 0.2), transparent 45%),
+    #05060a;
   color: #f5f7ff;
   padding: 0;
-  position: relative;
-  overflow-x: hidden;
-}
-
-body::before,
-body::after {
-  content: "";
-  position: fixed;
-  inset: -20%;
-  background: radial-gradient(circle, rgba(21, 210, 150, 0.28) 0%, transparent 65%);
-  filter: blur(28px);
-  opacity: 0.8;
-  animation: wowziriGlow 18s ease-in-out infinite;
-  z-index: 0;
-  pointer-events: none;
-  transform: rotate(0deg);
-}
-
-body::after {
-  background: radial-gradient(circle, rgba(60, 145, 255, 0.15) 0%, transparent 70%);
-  animation-duration: 24s;
-  animation-direction: reverse;
-  opacity: 0.55;
-}
-
-body.light-mode {
-  background-color: #fdfdfd;
-  color: #0f172a;
-}
-
-body.light-mode::before {
-  background: radial-gradient(circle, rgba(34, 197, 94, 0.45) 0%, transparent 65%);
-  opacity: 0.95;
-}
-
-body.light-mode::after {
-  background: radial-gradient(circle, rgba(59, 130, 246, 0.22) 0%, transparent 70%);
-  opacity: 0.6;
 }
 
 #root {
   min-height: 100vh;
-  position: relative;
-  z-index: 1;
-}
-
-@keyframes wowziriGlow {
-  0% {
-    transform: translate(-12%, -8%) scale(1);
-  }
-  50% {
-    transform: translate(8%, 10%) scale(1.1);
-  }
-  100% {
-    transform: translate(-12%, -8%) scale(1);
-  }
 }
 
 textarea.ant-input {

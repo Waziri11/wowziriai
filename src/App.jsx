@@ -27,7 +27,7 @@ export default function App() {
       <Layout
         style={{
           minHeight: "100vh",
-          background: "transparent",
+          background: isDark ? "#05060a" : "#f3f4f8",
         }}
       >
         <Content style={{ padding: 0 }}>

@@ -37,11 +37,63 @@ export default function Chat({ themeMode, onThemeChange }) {
   } = useChat({
     api: "/api/chat",
     onError: (err) => {
+      console.error("❌ Chat error:", err);
+      console.error("Error message:", err?.message);
+      console.error("Error details:", err);
+      
+      // Parse error message to make it user-friendly
+      let userMessage = "Wowziri encountered an issue. Please try again.";
+      
+      try {
+        let errorStr = "";
+        
+        // Try to parse JSON error message
+        if (err?.message) {
+          try {
+            const errorObj = JSON.parse(err.message);
+            errorStr = errorObj.details || errorObj.error || err.message;
+          } catch {
+            errorStr = err.message;
+          }
+        }
+        
+        // Convert to string if it's not already
+        errorStr = String(errorStr || "");
+        
+        if (errorStr.includes("429") || errorStr.includes("quota") || errorStr.includes("Too Many Requests")) {
+          userMessage = "We're getting too many requests right now. Please wait a moment and try again.";
+        } else if (errorStr.includes("404") || errorStr.includes("Not Found") || errorStr.includes("not found")) {
+          userMessage = "The AI model is currently unavailable. Please try again or contact support.";
+        } else if (errorStr.includes("500") || errorStr.includes("Internal Server Error")) {
+          userMessage = "Something went wrong on our end. Please try again in a moment.";
+        } else if (errorStr.includes("network") || errorStr.includes("fetch") || errorStr.includes("Failed to fetch")) {
+          userMessage = "Network connection issue. Please check your internet and try again.";
+        } else if (errorStr.includes("API key") || errorStr.includes("authentication") || errorStr.includes("GEMINI_API_KEY")) {
+          userMessage = "Authentication issue detected. Please contact support.";
+        }
+      } catch (parseError) {
+        console.error("Error parsing error message:", parseError);
+        userMessage = "Wowziri encountered an unexpected issue. Please try again.";
+      }
+      
       setErrorMeta({
         id: Date.now(),
-        message:
-          err?.message || "Wowziri hit a snag replying. Please try again.",
+        message: userMessage,
       });
+    },
+    onResponse: (response) => {
+      console.log("✅ Got response from API");
+      console.log("Response status:", response.status);
+      console.log("Response headers:", response.headers);
+      
+      // Clear any previous errors on successful response
+      if (response.ok) {
+        setErrorMeta(null);
+      }
+    },
+    onFinish: (message) => {
+      console.log("✅ Message finished:", message);
+      setErrorMeta(null);
     },
   });
 
@@ -140,12 +192,16 @@ export default function Chat({ themeMode, onThemeChange }) {
   );
 
   useEffect(() => {
-    if (
-      errorMeta &&
-      messages.length > 0 &&
-      messages[messages.length - 1].role === "assistant"
-    ) {
-      setErrorMeta(null);
+    try {
+      if (
+        errorMeta &&
+        messages.length > 0 &&
+        messages[messages.length - 1]?.role === "assistant"
+      ) {
+        setErrorMeta(null);
+      }
+    } catch (error) {
+      console.error("Error in useEffect:", error);
     }
   }, [messages, errorMeta]);
 
@@ -327,19 +383,67 @@ export default function Chat({ themeMode, onThemeChange }) {
     >
       <div
         style={{
-          background: palette.botBubble,
-          border: `1px solid ${palette.border}`,
-          borderRadius: 24,
-          padding: "18px 24px",
-          color: palette.hint,
-          fontSize: TYPE_SCALE.body,
-          display: "flex",
-          alignItems: "center",
-          gap: 12,
+          display: "grid",
+          gridTemplateColumns: "auto 1fr",
+          gap: 16,
+          maxWidth: "90%",
+          alignItems: "flex-start",
         }}
       >
-        <LoadingOutlined spin />
-        <span>Thinking...</span>
+        <div
+          style={{
+            width: 42,
+            height: 42,
+            borderRadius: "50%",
+            background: "rgba(255,255,255,0.04)",
+            border: `1px solid ${palette.border}`,
+            display: "grid",
+            placeItems: "center",
+          }}
+        >
+          <img
+            src={wowziriLogo}
+            alt="Wowziri avatar"
+            style={{ width: 28, height: 28 }}
+          />
+        </div>
+        <div
+          style={{
+            background: palette.botBubble,
+            border: `1px solid ${palette.border}`,
+            borderRadius: 24,
+            padding: "18px 24px",
+            color: palette.hint,
+            fontSize: TYPE_SCALE.body,
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            minWidth: 80,
+          }}
+        >
+          <style>{`
+            @keyframes dotFlashing {
+              0%, 80%, 100% {
+                opacity: 0.3;
+              }
+              40% {
+                opacity: 1;
+              }
+            }
+            .dot {
+              animation: dotFlashing 1.4s infinite;
+            }
+            .dot:nth-child(2) {
+              animation-delay: 0.2s;
+            }
+            .dot:nth-child(3) {
+              animation-delay: 0.4s;
+            }
+          `}</style>
+          <span className="dot" style={{ fontSize: 24, lineHeight: 0.5 }}>•</span>
+          <span className="dot" style={{ fontSize: 24, lineHeight: 0.5 }}>•</span>
+          <span className="dot" style={{ fontSize: 24, lineHeight: 0.5 }}>•</span>
+        </div>
       </div>
     </div>
   );
@@ -353,19 +457,55 @@ export default function Chat({ themeMode, onThemeChange }) {
       >
         <div
           style={{
-            background: "rgba(255, 97, 91, 0.12)",
-            border: "1px solid rgba(255, 97, 91, 0.35)",
-            borderRadius: 24,
-            padding: "18px 24px",
-            color: "#ff6f61",
-            fontSize: TYPE_SCALE.body,
-            maxWidth: "85%",
+            display: "grid",
+            gridTemplateColumns: "auto 1fr",
+            gap: 16,
+            maxWidth: "90%",
+            alignItems: "flex-start",
           }}
         >
-          <Text strong style={{ display: "block", marginBottom: 6 }}>
-            Wowziri
-          </Text>
-          {errorMeta.message}
+          <div
+            style={{
+              width: 42,
+              height: 42,
+              borderRadius: "50%",
+              background: "rgba(255, 97, 91, 0.12)",
+              border: "1px solid rgba(255, 97, 91, 0.35)",
+              display: "grid",
+              placeItems: "center",
+            }}
+          >
+            <img
+              src={wowziriLogo}
+              alt="Wowziri avatar"
+              style={{ width: 28, height: 28, opacity: 0.7 }}
+            />
+          </div>
+          <div
+            style={{
+              background: "rgba(255, 97, 91, 0.12)",
+              border: "1px solid rgba(255, 97, 91, 0.35)",
+              borderRadius: 24,
+              padding: "18px 24px",
+              color: "#ff6f61",
+              fontSize: TYPE_SCALE.body,
+              lineHeight: 1.65,
+              minWidth: 200,
+            }}
+          >
+            <Text
+              strong
+              style={{
+                fontSize: 15,
+                color: "#ff6f61",
+                display: "block",
+                marginBottom: 6,
+              }}
+            >
+              Wowziri
+            </Text>
+            {errorMeta.message}
+          </div>
         </div>
       </div>
     );
@@ -449,7 +589,7 @@ export default function Chat({ themeMode, onThemeChange }) {
                 Wowziri
               </Title>
               <Text style={{ color: palette.hint, fontSize: TYPE_SCALE.subhead }}>
-                Voice-first AI conversations, powered by DeepSeek
+               Where amazing ideas are "generated"
               </Text>
             </div>
           </div>

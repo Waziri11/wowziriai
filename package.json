@@ -4,21 +4,28 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "concurrently \"npm run server\" \"npm run client\"",
+    "server": "node server.js",
+    "client": "vite",
+    "dev:vercel": "vercel dev",
     "build": "vite build",
     "preview": "vite preview"
   },
   "dependencies": {
     "@ant-design/icons": "^5.3.7",
+    "@google/generative-ai": "^0.24.1",
     "ai": "^3.1.15",
     "antd": "^5.15.2",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.3",
+    "express": "^5.2.1",
     "openai": "^4.76.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.3.0",
+    "concurrently": "^9.2.1",
     "vite": "^5.2.11"
   }
 }
-
