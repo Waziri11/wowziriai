@@ -30,10 +30,10 @@ body {
 body.light-mode {
   --bg-color: #f8f9ff;
   --text-color: #0f172a;
-  --orb-1: rgba(62, 210, 170, 0.18);
-  --orb-1-strong: rgba(45, 190, 140, 0.48);
-  --orb-2: rgba(90, 190, 255, 0.18);
-  --orb-2-strong: rgba(60, 155, 240, 0.48);
+  --orb-1: rgba(62, 210, 170, 0.26);
+  --orb-1-strong: rgba(45, 190, 140, 0.68);
+  --orb-2: rgba(90, 190, 255, 0.26);
+  --orb-2-strong: rgba(60, 155, 240, 0.68);
   color: var(--text-color);
   background-color: var(--bg-color);
 }
