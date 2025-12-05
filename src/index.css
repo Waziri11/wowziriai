@@ -4,6 +4,13 @@
   background-color: #05060a;
   line-height: 1.5;
   font-weight: 400;
+  --bg-color: #05060a;
+  --text-color: #f5f7ff;
+  --orb-1: rgba(62, 230, 180, 0.22); /* light green wash */
+  --orb-1-strong: rgba(45, 210, 150, 0.6);
+  --orb-2: rgba(90, 200, 255, 0.22); /* cyan wash */
+  --orb-2-strong: rgba(60, 170, 255, 0.6);
+  --orb-blur: 80px;
 }
 
 * {
@@ -13,19 +20,22 @@
 body {
   margin: 0;
   min-height: 100vh;
-  background: radial-gradient(circle at 20% 20%, rgba(16, 163, 127, 0.25), transparent 55%),
-    radial-gradient(circle at 80% 0%, rgba(47, 128, 237, 0.2), transparent 45%),
-    #05060a;
-  color: #f5f7ff;
+  background-color: var(--bg-color);
+  color: var(--text-color);
   padding: 0;
   overflow-x: hidden;
+  position: relative;
 }
 
 body.light-mode {
-  background: radial-gradient(circle at 20% 20%, rgba(16, 163, 127, 0.15), transparent 55%),
-    radial-gradient(circle at 80% 0%, rgba(47, 128, 237, 0.1), transparent 45%),
-    #f8f9ff;
-  color: #0f172a;
+  --bg-color: #f8f9ff;
+  --text-color: #0f172a;
+  --orb-1: rgba(62, 210, 170, 0.18);
+  --orb-1-strong: rgba(45, 190, 140, 0.48);
+  --orb-2: rgba(90, 190, 255, 0.18);
+  --orb-2-strong: rgba(60, 155, 240, 0.48);
+  color: var(--text-color);
+  background-color: var(--bg-color);
 }
 
 #root {
@@ -68,6 +78,91 @@ body.light-mode ::-webkit-scrollbar-thumb:hover {
   background: rgba(0, 0, 0, 0.2);
 }
 
+.orb-surface {
+  position: fixed;
+  inset: -15% -10% -20% -10%;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 0;
+  filter: saturate(115%);
+}
+
+.orb {
+  position: absolute;
+  width: 42vmax;
+  height: 42vmax;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 30% 30%, var(--orb-1-strong), transparent 60%),
+    radial-gradient(circle at 70% 70%, var(--orb-1), transparent 70%);
+  filter: blur(var(--orb-blur));
+  opacity: 0.9;
+  animation: floatOrbA 24s ease-in-out infinite;
+  mix-blend-mode: screen;
+  left: -28vw;
+  top: -12vh;
+}
+
+.orb--b {
+  background:
+    radial-gradient(circle at 40% 40%, var(--orb-2-strong), transparent 55%),
+    radial-gradient(circle at 65% 70%, var(--orb-2), transparent 70%);
+  width: 48vmax;
+  height: 48vmax;
+  animation: floatOrbB 28s ease-in-out infinite;
+  opacity: 0.85;
+  left: 58vw;
+  top: -10vh;
+}
+
+body.light-mode .orb,
+body.light-mode .orb--b {
+  mix-blend-mode: multiply;
+}
+
+@keyframes floatOrbA {
+  0% {
+    transform: translate3d(0vw, -6vh, 0) scale(0.92);
+  }
+  25% {
+    transform: translate3d(32vw, 14vh, 0) scale(1.05);
+  }
+  55% {
+    transform: translate3d(18vw, 50vh, 0) scale(1);
+  }
+  80% {
+    transform: translate3d(-10vw, 30vh, 0) scale(1.08);
+  }
+  100% {
+    transform: translate3d(0vw, -6vh, 0) scale(0.92);
+  }
+}
+
+@keyframes floatOrbB {
+  0% {
+    transform: translate3d(6vw, -8vh, 0) scale(1.05);
+  }
+  25% {
+    transform: translate3d(-20vw, 20vh, 0) scale(0.98);
+  }
+  55% {
+    transform: translate3d(16vw, 52vh, 0) scale(1.02);
+  }
+  80% {
+    transform: translate3d(28vw, -6vh, 0) scale(1.08);
+  }
+  100% {
+    transform: translate3d(6vw, -8vh, 0) scale(1.05);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .orb,
+  .orb--b {
+    animation: none;
+  }
+}
+
 /* Smooth transitions */
 * {
   scroll-behavior: smooth;
@@ -76,11 +171,11 @@ body.light-mode ::-webkit-scrollbar-thumb:hover {
 /* Mobile optimizations */
 @media (max-width: 768px) {
   body {
-    font-size: 16px; /* Prevents zoom on input focus in iOS */
+    font-size: 16px;
   }
   
   input, textarea {
-    font-size: 16px !important; /* Prevents zoom on input focus in iOS */
+    font-size: 16px !important;
   }
 }
 

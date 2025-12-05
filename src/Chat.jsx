@@ -258,12 +258,12 @@ export default function Chat({ themeMode, onThemeChange }) {
       hint: isDark ? "#8c94b3" : "#6b7280",
       accent: "#10a37f",
       border: isDark ? "rgba(255,255,255,0.08)" : "rgba(15,23,42,0.12)",
-      composer: isDark ? "rgba(6,7,15,0.92)" : "#ffffff",
+      composer: isDark ? "rgba(6,7,15,0.7)" : "rgba(255,255,255,0.7)",
       icon: isDark ? "#9aa3ba" : "#4b5567",
-      userBubble: isDark ? "rgba(18, 63, 52, 0.75)" : "#d7f5ea",
-      botBubble: isDark ? "rgba(7,8,14,0.75)" : "#f3f4f9",
+      userBubble: isDark ? "rgba(18, 63, 52, 0.6)" : "rgba(215, 245, 234, 0.8)",
+      botBubble: isDark ? "rgba(7,8,14,0.6)" : "rgba(243, 244, 249, 0.8)",
       userBorder: isDark ? "rgba(16,163,127,0.6)" : "rgba(16,163,127,0.4)",
-      sidebar: isDark ? "rgba(6,7,15,0.95)" : "#f9fafb",
+      sidebar: isDark ? "rgba(6,7,15,0.85)" : "rgba(249,250,251,0.85)",
       sidebarHover: isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.03)",
       newChatBtn: isDark
         ? "linear-gradient(135deg, rgba(6, 20, 16, 0.8), rgba(16, 163, 127, 0.15))"
@@ -365,12 +365,12 @@ export default function Chat({ themeMode, onThemeChange }) {
 
   useEffect(() => {
     try {
-      if (
-        errorMeta &&
-        messages.length > 0 &&
+    if (
+      errorMeta &&
+      messages.length > 0 &&
         messages[messages.length - 1]?.role === "assistant"
-      ) {
-        setErrorMeta(null);
+    ) {
+      setErrorMeta(null);
       }
     } catch (error) {
       console.error("Error in useEffect:", error);
@@ -588,16 +588,16 @@ export default function Chat({ themeMode, onThemeChange }) {
             style={{ width: 28, height: 28 }}
           />
         </div>
-        <div
-          style={{
-            background: palette.botBubble,
-            border: `1px solid ${palette.border}`,
-            borderRadius: 24,
-            padding: "18px 24px",
-            color: palette.hint,
-            fontSize: TYPE_SCALE.body,
-            display: "flex",
-            alignItems: "center",
+      <div
+        style={{
+          background: palette.botBubble,
+          border: `1px solid ${palette.border}`,
+          borderRadius: 24,
+          padding: "18px 24px",
+          color: palette.hint,
+          fontSize: TYPE_SCALE.body,
+          display: "flex",
+          alignItems: "center",
             gap: 8,
             minWidth: 80,
           }}
@@ -668,14 +668,14 @@ export default function Chat({ themeMode, onThemeChange }) {
               style={{ width: 28, height: 28, opacity: 0.7 }}
             />
           </div>
-          <div
-            style={{
-              background: "rgba(255, 97, 91, 0.12)",
-              border: "1px solid rgba(255, 97, 91, 0.35)",
-              borderRadius: 24,
-              padding: "18px 24px",
-              color: "#ff6f61",
-              fontSize: TYPE_SCALE.body,
+        <div
+          style={{
+            background: "rgba(255, 97, 91, 0.12)",
+            border: "1px solid rgba(255, 97, 91, 0.35)",
+            borderRadius: 24,
+            padding: "18px 24px",
+            color: "#ff6f61",
+            fontSize: TYPE_SCALE.body,
               lineHeight: 1.65,
               minWidth: 200,
             }}
@@ -689,9 +689,9 @@ export default function Chat({ themeMode, onThemeChange }) {
                 marginBottom: 6,
               }}
             >
-              Wowziri
-            </Text>
-            {errorMeta.message}
+            Wowziri
+          </Text>
+          {errorMeta.message}
           </div>
         </div>
       </div>
@@ -702,14 +702,16 @@ export default function Chat({ themeMode, onThemeChange }) {
     () => ({
       width: isMobile ? 38 : 48,
       height: isMobile ? 38 : 48,
-      borderRadius: 16,
-      border: `1px solid ${palette.border}`,
-      background: isDark ? "rgba(7,8,14,0.75)" : "rgba(255,255,255,0.9)",
-      display: "grid",
-      placeItems: "center",
-      cursor: "pointer",
-      color: palette.icon,
-      transition: "all 0.2s ease",
+    borderRadius: 16,
+    border: `1px solid ${palette.border}`,
+      background: isDark ? "rgba(7,8,14,0.6)" : "rgba(255,255,255,0.7)",
+      backdropFilter: "blur(10px)",
+      WebkitBackdropFilter: "blur(10px)",
+    display: "grid",
+    placeItems: "center",
+    cursor: "pointer",
+    color: palette.icon,
+    transition: "all 0.2s ease",
       fontSize: isMobile ? 16 : 18,
     }),
     [isMobile, palette, isDark]
@@ -717,13 +719,19 @@ export default function Chat({ themeMode, onThemeChange }) {
 
   return (
     <div
+      className="app-shell"
       style={{
         minHeight: "100vh",
         display: "flex",
         color: palette.text,
         position: "relative",
+        zIndex: 1,
       }}
     >
+      <div className="orb-surface" aria-hidden="true">
+        <div className="orb" />
+        <div className="orb orb--b" />
+      </div>
       {contextHolder}
 
       {/* Mobile Overlay */}
@@ -734,7 +742,7 @@ export default function Chat({ themeMode, onThemeChange }) {
             position: "fixed",
             inset: 0,
             background: "rgba(0,0,0,0.5)",
-            zIndex: 998,
+            zIndex: 50,
             backdropFilter: "blur(2px)",
           }}
         />
@@ -753,10 +761,11 @@ export default function Chat({ themeMode, onThemeChange }) {
           overflow: "hidden",
           position: isMobile ? "fixed" : "relative",
           height: isMobile ? "100vh" : "auto",
-          zIndex: 999,
+          zIndex: 100,
           left: 0,
           top: 0,
-          backdropFilter: "blur(10px)",
+          backdropFilter: "blur(20px)",
+          WebkitBackdropFilter: "blur(20px)",
         }}
       >
         {/* Logo and Title in Sidebar */}
@@ -769,7 +778,7 @@ export default function Chat({ themeMode, onThemeChange }) {
           <div
             style={{
               display: "flex",
-              alignItems: "center",
+        alignItems: "center",
               justifyContent: "space-between",
               marginBottom: 16,
             }}
@@ -801,7 +810,7 @@ export default function Chat({ themeMode, onThemeChange }) {
                   style={{
                     margin: 0,
                     fontSize: 20,
-                    color: palette.text,
+        color: palette.text,
                     fontWeight: 600,
                     lineHeight: 1.2,
                   }}
@@ -996,26 +1005,26 @@ export default function Chat({ themeMode, onThemeChange }) {
           minWidth: 0,
         }}
       >
-        <div
-          style={{
-            width: "100%",
-            maxWidth: conversationWidth,
-            display: "flex",
-            flexDirection: "column",
+      <div
+        style={{
+          width: "100%",
+          maxWidth: conversationWidth,
+          display: "flex",
+          flexDirection: "column",
             gap: isMobile ? 16 : 28,
-            flex: 1,
+          flex: 1,
             minHeight: 0,
+        }}
+      >
+        <header
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+              gap: 12,
+            flexWrap: "wrap",
           }}
         >
-          <header
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              gap: 12,
-              flexWrap: "wrap",
-            }}
-          >
             <div
               style={{
                 display: "flex",
@@ -1050,280 +1059,281 @@ export default function Chat({ themeMode, onThemeChange }) {
                     style={{
                       width: isMobile ? 36 : 42,
                       height: isMobile ? 36 : 42,
-                      borderRadius: "50%",
-                      border: `1px solid ${palette.border}`,
-                      background: isDark ? "rgba(255,255,255,0.05)" : "#ffffff",
-                      display: "grid",
-                      placeItems: "center",
-                      boxShadow: isDark
+                borderRadius: "50%",
+                border: `1px solid ${palette.border}`,
+                background: isDark ? "rgba(255,255,255,0.05)" : "#ffffff",
+                display: "grid",
+                placeItems: "center",
+                boxShadow: isDark
                         ? "0 4px 12px rgba(0,0,0,0.3)"
                         : "0 4px 12px rgba(15,23,42,0.08)",
-                    }}
-                  >
-                    <img
-                      src={wowziriLogo}
-                      alt="Wowziri logo"
+              }}
+            >
+              <img
+                src={wowziriLogo}
+                alt="Wowziri logo"
                       style={{
                         width: isMobile ? 24 : 28,
                         height: isMobile ? 24 : 28,
                       }}
-                    />
-                  </div>
+              />
+            </div>
                   {!isMobile && (
-                    <div>
-                      <Title
+            <div>
+              <Title
                         level={3}
-                        style={{
-                          margin: 0,
+                style={{
+                  margin: 0,
                           fontSize: 18,
-                          color: palette.text,
-                          fontWeight: 600,
+                  color: palette.text,
+                  fontWeight: 600,
                           lineHeight: 1.2,
-                        }}
-                      >
-                        Wowziri
-                      </Title>
+                }}
+              >
+                Wowziri
+              </Title>
                       <Text style={{ color: palette.hint, fontSize: 11 }}>
                         Where "Amazing" ideas are generated
-                      </Text>
-                    </div>
+              </Text>
+            </div>
                   )}
                 </>
               )}
-            </div>
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
+          </div>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
                 gap: isMobile ? 6 : 10,
-              }}
-            >
-              <Tooltip
+            }}
+          >
+            <Tooltip
                 title={
                   voiceEnabled ? "Disable voice output" : "Enable voice output"
                 }
+            >
+              <span
+                role="button"
+                tabIndex={0}
+                onClick={() => setVoiceEnabled((prev) => !prev)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") setVoiceEnabled((prev) => !prev);
+                }}
+                style={{
+                  ...iconButtonBase,
+                  color: voiceEnabled ? palette.accent : palette.icon,
+                  borderColor: voiceEnabled ? palette.accent : palette.border,
+                }}
               >
-                <span
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => setVoiceEnabled((prev) => !prev)}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter") setVoiceEnabled((prev) => !prev);
-                  }}
-                  style={{
-                    ...iconButtonBase,
-                    color: voiceEnabled ? palette.accent : palette.icon,
-                    borderColor: voiceEnabled ? palette.accent : palette.border,
-                  }}
-                >
-                  {voiceEnabled ? <SoundOutlined /> : <AudioMutedOutlined />}
-                </span>
-              </Tooltip>
-              <Tooltip
-                title={isDark ? "Switch to light mode" : "Switch to dark mode"}
+                {voiceEnabled ? <SoundOutlined /> : <AudioMutedOutlined />}
+              </span>
+            </Tooltip>
+            <Tooltip
+              title={isDark ? "Switch to light mode" : "Switch to dark mode"}
+            >
+              <span
+                role="button"
+                tabIndex={0}
+                onClick={handleThemeToggle}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") handleThemeToggle();
+                }}
+                style={iconButtonBase}
               >
-                <span
-                  role="button"
-                  tabIndex={0}
-                  onClick={handleThemeToggle}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter") handleThemeToggle();
-                  }}
-                  style={iconButtonBase}
-                >
-                  {isDark ? <MoonOutlined /> : <BulbOutlined />}
-                </span>
-              </Tooltip>
-            </div>
-          </header>
+                {isDark ? <MoonOutlined /> : <BulbOutlined />}
+              </span>
+            </Tooltip>
+          </div>
+        </header>
 
+        <div
+          style={{
+            flex: 1,
+            display: "flex",
+            flexDirection: "column",
+            gap: 24,
+            paddingBottom: 16,
+          }}
+        >
           <div
             style={{
               flex: 1,
               display: "flex",
               flexDirection: "column",
-              gap: 24,
-              paddingBottom: 16,
-            }}
-          >
-            <div
-              style={{
-                flex: 1,
-                display: "flex",
-                flexDirection: "column",
                 gap: isMobile ? 12 : 18,
-                overflowY: "auto",
+              overflowY: "auto",
                 paddingRight: isMobile ? 0 : 4,
                 minHeight: 0,
-              }}
-            >
-              {messages.length === 0 ? (
-                <div
-                  style={{
-                    margin: "auto",
-                    textAlign: "center",
-                    maxWidth: 560,
+            }}
+          >
+            {messages.length === 0 ? (
+              <div
+                style={{
+                  margin: "auto",
+                  textAlign: "center",
+                  maxWidth: 560,
                     padding: isMobile ? "40px 16px" : "60px 24px",
-                  }}
-                >
-                  <Title
-                    level={2}
-                    style={{
-                      color: palette.text,
+                }}
+              >
+                <Title
+                  level={2}
+                  style={{
+                    color: palette.text,
                       fontSize: isMobile
                         ? "clamp(22px, 6vw, 28px)"
                         : "clamp(26px, 5vw, 40px)",
-                      marginBottom: 12,
-                    }}
-                  >
-                    Ask anything..
-                  </Title>
-
-                  <div
-                    style={{
-                      marginTop: 28,
-                      position: "relative",
-                      height: 32,
-                      overflow: "hidden",
-                    }}
-                  >
-                    {demoPrompts.map((prompt, idx) => (
-                      <Text
-                        key={prompt}
-                        style={{
+                    marginBottom: 12,
+                  }}
+                >
+                  Ask anything..
+                </Title>
+               
+                <div
+                  style={{
+                    marginTop: 28,
+                    position: "relative",
+                    height: 32,
+                    overflow: "hidden",
+                  }}
+                >
+                  {demoPrompts.map((prompt, idx) => (
+                    <Text
+                      key={prompt}
+                      style={{
                           position:
                             idx === promptIndex ? "relative" : "absolute",
-                          inset: 0,
-                          opacity: promptIndex === idx ? 1 : 0,
-                          transform:
+                        inset: 0,
+                        opacity: promptIndex === idx ? 1 : 0,
+                        transform:
                             promptIndex === idx
                               ? "translateY(0)"
                               : "translateY(12px)",
-                          transition: "opacity 0.6s ease, transform 0.6s ease",
-                          color: "white",
-                          fontSize: TYPE_SCALE.subhead,
-                        }}
-                      >
-                        {prompt}
-                      </Text>
-                    ))}
-                  </div>
+                        transition: "opacity 0.6s ease, transform 0.6s ease",
+                          color: isDark ? "#f8f9ff" : "#0f172a",
+                        fontSize: TYPE_SCALE.subhead,
+                      }}
+                    >
+                      {prompt}
+                    </Text>
+                  ))}
                 </div>
-              ) : (
-                <>
-                  {messages.map(renderMessage)}
-                  {waitingForAssistant && renderThinkingBubble()}
-                  {renderErrorBubble()}
-                </>
-              )}
-              <div ref={messagesEndRef} />
-            </div>
+              </div>
+            ) : (
+              <>
+                {messages.map(renderMessage)}
+                {waitingForAssistant && renderThinkingBubble()}
+                {renderErrorBubble()}
+              </>
+            )}
+            <div ref={messagesEndRef} />
+          </div>
 
-            <form
-              ref={composerRef}
-              onSubmit={handleSubmit}
-              style={{ marginTop: "auto" }}
-            >
-              <div
-                style={{
-                  position: "relative",
-                  background: palette.composer,
+          <form
+            ref={composerRef}
+            onSubmit={handleSubmit}
+            style={{ marginTop: "auto" }}
+          >
+            <div
+              style={{
+                position: "relative",
+                background: palette.composer,
                   borderRadius: isMobile ? 24 : 34,
-                  border: `1px solid ${palette.border}`,
+                border: `1px solid ${palette.border}`,
                   padding: isMobile
                     ? "12px 90px 14px 16px"
                     : "16px 120px 18px 22px",
-                  backdropFilter: "blur(18px)",
-                  boxShadow: isDark
-                    ? "0 30px 60px rgba(0,0,0,0.45)"
-                    : "0 30px 60px rgba(15,23,42,0.12)",
-                }}
-              >
-                <TextArea
-                  value={input}
-                  placeholder="Message Wowziri..."
-                  autoSize={{ minRows: 1, maxRows: 5 }}
-                  onChange={handleInputChange}
-                  onKeyDown={handleKeyDown}
-                  variant="borderless"
-                  disabled={isLoading}
-                  style={{
-                    background: "transparent",
-                    color: palette.text,
+                  backdropFilter: "blur(20px)",
+                  WebkitBackdropFilter: "blur(20px)",
+                boxShadow: isDark
+                  ? "0 30px 60px rgba(0,0,0,0.45)"
+                  : "0 30px 60px rgba(15,23,42,0.12)",
+              }}
+            >
+              <TextArea
+                value={input}
+                placeholder="Message Wowziri..."
+                autoSize={{ minRows: 1, maxRows: 5 }}
+                onChange={handleInputChange}
+                onKeyDown={handleKeyDown}
+                variant="borderless"
+                disabled={isLoading}
+                style={{
+                  background: "transparent",
+                  color: palette.text,
                     fontSize: isMobile ? 16 : TYPE_SCALE.body,
                     paddingRight: isMobile ? 70 : 96,
-                  }}
-                />
-                <div
-                  style={{
-                    position: "absolute",
+                }}
+              />
+              <div
+                style={{
+                  position: "absolute",
                     right: isMobile ? 16 : 24,
                     bottom: isMobile ? 14 : 16,
-                    display: "flex",
-                    alignItems: "center",
+                  display: "flex",
+                  alignItems: "center",
                     gap: isMobile ? 12 : 18,
-                  }}
-                >
-                  <Tooltip
-                    title={
+                }}
+              >
+                <Tooltip
+                  title={
                       isRecording
                         ? "Stop recording"
                         : "Voice input (push to talk)"
-                    }
+                  }
+                >
+                  <span
+                    role="button"
+                    tabIndex={0}
+                    onClick={startRecording}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") startRecording();
+                    }}
+                    style={{
+                      cursor: "pointer",
+                      fontSize: 20,
+                      color: isRecording ? "#ff6f61" : palette.icon,
+                      transition: "color 0.2s ease",
+                    }}
                   >
+                    <AudioOutlined />
+                  </span>
+                </Tooltip>
+                <Tooltip title="Send message">
+                  {isLoading ? (
+                      <LoadingOutlined
+                        style={{ fontSize: 20, color: palette.icon }}
+                      />
+                  ) : (
                     <span
                       role="button"
                       tabIndex={0}
-                      onClick={startRecording}
+                      onClick={() => composerRef.current?.requestSubmit()}
                       onKeyDown={(event) => {
-                        if (event.key === "Enter") startRecording();
+                        if (event.key === "Enter") {
+                          composerRef.current?.requestSubmit();
+                        }
                       }}
                       style={{
                         cursor: "pointer",
                         fontSize: 20,
-                        color: isRecording ? "#ff6f61" : palette.icon,
-                        transition: "color 0.2s ease",
+                        color: palette.accent,
+                        display: "inline-flex",
                       }}
                     >
-                      <AudioOutlined />
+                      <SendOutlined />
                     </span>
-                  </Tooltip>
-                  <Tooltip title="Send message">
-                    {isLoading ? (
-                      <LoadingOutlined
-                        style={{ fontSize: 20, color: palette.icon }}
-                      />
-                    ) : (
-                      <span
-                        role="button"
-                        tabIndex={0}
-                        onClick={() => composerRef.current?.requestSubmit()}
-                        onKeyDown={(event) => {
-                          if (event.key === "Enter") {
-                            composerRef.current?.requestSubmit();
-                          }
-                        }}
-                        style={{
-                          cursor: "pointer",
-                          fontSize: 20,
-                          color: palette.accent,
-                          display: "inline-flex",
-                        }}
-                      >
-                        <SendOutlined />
-                      </span>
-                    )}
-                  </Tooltip>
-                </div>
+                  )}
+                </Tooltip>
               </div>
-              <div
-                style={{
-                  marginTop: 12,
-                  textAlign: "center",
-                  color: palette.hint,
-                  fontSize: TYPE_SCALE.small,
-                }}
-              >
+            </div>
+            <div
+              style={{
+                marginTop: 12,
+                textAlign: "center",
+                color: palette.hint,
+                fontSize: TYPE_SCALE.small,
+              }}
+            >
                 Matumizi ya AI kupita kiasi ni hatari kwa afya yako
               </div>
               <div
@@ -1335,27 +1345,27 @@ export default function Chat({ themeMode, onThemeChange }) {
                 }}
               >
                 Made in Tanzania &copy; 2025
-              </div>
-              {!supportsSpeech && (
-                <Text
-                  style={{
-                    marginTop: 10,
-                    display: "block",
-                    color: palette.hint,
-                  }}
-                >
+            </div>
+            {!supportsSpeech && (
+              <Text
+                style={{
+                  marginTop: 10,
+                  display: "block",
+                  color: palette.hint,
+                }}
+              >
                   Voice input isn't supported in this browser. Try Chrome
                   desktop.
-                </Text>
-              )}
-              {isRecording && (
+              </Text>
+            )}
+            {isRecording && (
                 <Text
                   style={{ marginTop: 10, display: "block", color: "#ff6f61" }}
                 >
-                  🎤 Listening…
-                </Text>
-              )}
-            </form>
+                🎤 Listening…
+              </Text>
+            )}
+          </form>
           </div>
         </div>
       </div>
