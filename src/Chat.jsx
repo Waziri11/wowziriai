@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useChat } from "ai/react";
-import { Input, Typography, Tooltip, message } from "antd";
+import { Input, Typography, Tooltip, message, Button } from "antd";
+import { useNavigate } from "react-router-dom";
 import {
   AudioOutlined,
   SendOutlined,
@@ -275,6 +276,155 @@ export default function Chat({ themeMode, onThemeChange }) {
     [isDark]
   );
 
+  const navigate = useNavigate();
+  const [authUser, setAuthUser] = useState(null);
+  const [accessToken, setAccessToken] = useState(
+    () => (typeof window !== "undefined" ? localStorage.getItem("wowziri_access") || "" : "")
+  );
+
+  useEffect(() => {
+    if (!isBrowser) return;
+    if (accessToken) {
+      localStorage.setItem("wowziri_access", accessToken);
+    } else {
+      localStorage.removeItem("wowziri_access");
+    }
+  }, [accessToken, isBrowser]);
+
+  const apiRequest = useCallback(
+    async (path, { method = "GET", body, withAuth = false } = {}) => {
+      const headers = { "Content-Type": "application/json" };
+      if (withAuth && accessToken) {
+        headers.Authorization = `Bearer ${accessToken}`;
+      }
+      const res = await fetch(path, {
+        method,
+        headers,
+        credentials: "include",
+        body: body ? JSON.stringify(body) : undefined,
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        const error = new Error(data.error || "Request failed");
+        error.details = data;
+        throw error;
+      }
+      return data;
+    },
+    [accessToken]
+  );
+
+  const refreshSession = useCallback(async () => {
+    try {
+      setAuthLoading(true);
+      const data = await apiRequest("/api/auth/refresh", { method: "POST" });
+      setAccessToken(data.accessToken || "");
+      setAuthUser(data.user || null);
+      return data.user;
+    } catch (err) {
+      setAccessToken("");
+      setAuthUser(null);
+      return null;
+    } finally {
+      setAuthLoading(false);
+    }
+  }, [apiRequest]);
+
+  const loadUserChats = useCallback(async () => {
+    if (!accessToken) return;
+    try {
+      const data = await apiRequest("/api/chats", { method: "GET", withAuth: true });
+      const normalized = (data.chats || []).map((chat) => ({
+        id: chat._id,
+        serverId: chat._id,
+        title: chat.title || "New Chat",
+        messages: (chat.messages || []).map((msg, idx) => ({
+          id: msg._id || `m-${idx}`,
+          role: msg.role,
+          content: msg.content,
+        })),
+        createdAt: chat.createdAt,
+        updatedAt: chat.updatedAt,
+      }));
+      setChats(normalized);
+      if (normalized.length > 0) {
+        setCurrentChatId(normalized[0].id);
+        setMessages(normalized[0].messages);
+      }
+    } catch (err) {
+      console.error("Unable to load remote chats", err);
+    }
+  }, [accessToken, apiRequest, setMessages]);
+
+  const syncChatToServer = useCallback(
+    async (chat) => {
+      if (!chat || !authUser || !accessToken) return;
+      try {
+        const payload = {
+          title: chat.title || "New Chat",
+          messages: (chat.messages || []).map((m) => ({ role: m.role, content: m.content })),
+        };
+        if (chat.serverId) {
+          const { chat: saved } = await apiRequest(`/api/chats/${chat.serverId}`, {
+            method: "PUT",
+            body: payload,
+            withAuth: true,
+          });
+          if (saved?._id) {
+            setChats((prev) =>
+              prev.map((c) =>
+                c.id === chat.id ? { ...c, serverId: saved._id, updatedAt: saved.updatedAt } : c
+              )
+            );
+          }
+        } else {
+          const { chat: saved } = await apiRequest("/api/chats", {
+            method: "POST",
+            body: payload,
+            withAuth: true,
+          });
+          if (saved?._id) {
+            setChats((prev) =>
+              prev.map((c) =>
+                c.id === chat.id ? { ...c, serverId: saved._id, updatedAt: saved.updatedAt } : c
+              )
+            );
+          }
+        }
+      } catch (err) {
+        console.error("Failed to sync chat", err);
+      }
+    },
+    [accessToken, apiRequest, authUser]
+  );
+
+  useEffect(() => {
+    if (!authUser) return;
+    const chat = chats.find((c) => c.id === currentChatId);
+    if (chat && chat.messages && chat.messages.length > 0) {
+      syncChatToServer(chat);
+    }
+  }, [authUser, chats, currentChatId, syncChatToServer]);
+
+  const handleLogout = useCallback(async () => {
+    try {
+      await apiRequest("/api/auth/logout", { method: "POST" });
+    } catch (err) {
+      console.error("Logout error", err);
+    } finally {
+      setAccessToken("");
+      setAuthUser(null);
+    }
+  }, [apiRequest]);
+
+  useEffect(() => {
+    refreshSession().then((user) => {
+      if (user) {
+        loadUserChats();
+      }
+    });
+  }, [loadUserChats, refreshSession]);
+
   // Chat management functions
   const createNewChat = useCallback(() => {
     const newChat = {
@@ -291,6 +441,12 @@ export default function Chat({ themeMode, onThemeChange }) {
   const deleteChat = useCallback(
     (chatId) => {
       setChats((prev) => {
+        const target = prev.find((c) => c.id === chatId);
+        if (target?.serverId && authUser) {
+          apiRequest(`/api/chats/${target.serverId}`, { method: "DELETE", withAuth: true }).catch((err) =>
+            console.error("Unable to delete remote chat", err)
+          );
+        }
         const filtered = prev.filter((c) => c.id !== chatId);
         // If deleting current chat, switch to another or clear
         if (chatId === currentChatId) {
@@ -304,7 +460,7 @@ export default function Chat({ themeMode, onThemeChange }) {
         return filtered;
       });
     },
-    [currentChatId, setMessages]
+    [apiRequest, authUser, currentChatId, setMessages]
   );
 
   const switchChat = useCallback((chatId) => {
@@ -904,6 +1060,42 @@ export default function Chat({ themeMode, onThemeChange }) {
             <PlusOutlined style={{ color: palette.accent }} />
             <span style={{ color: palette.text }}>New Chat</span>
           </button>
+          <div style={{ marginTop: 10, display: "grid", gap: 8 }}>
+            {authUser ? (
+              <>
+                <Text style={{ color: palette.hint, fontSize: 12 }}>Signed in as</Text>
+                <div
+                  style={{
+                    padding: "10px 12px",
+                    borderRadius: 10,
+                    border: `1px solid ${palette.border}`,
+                    background: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.02)",
+                    color: palette.text,
+                    fontSize: 13,
+                  }}
+                >
+                  {authUser.fullName || authUser.email}
+                </div>
+                <Button size="middle" danger onClick={handleLogout}>
+                  Log out
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button
+                  size="middle"
+                  type="primary"
+                  onClick={() => navigate("/auth/signup")}
+                  style={{ background: palette.accent, borderColor: palette.accent }}
+                >
+                  Sign up
+                </Button>
+                <Button size="middle" onClick={() => navigate("/auth/login")}>
+                  Log in
+                </Button>
+              </>
+            )}
+          </div>
         </div>
 
         {/* Chat List */}
@@ -918,7 +1110,7 @@ export default function Chat({ themeMode, onThemeChange }) {
             <div
               key={chat.id}
               onClick={() => {
-                switchChat(chat.id);
+                switchChat(chat.id);1
                 if (isMobile) setSidebarOpen(false);
               }}
               style={{
@@ -1107,6 +1299,30 @@ export default function Chat({ themeMode, onThemeChange }) {
                 gap: isMobile ? 6 : 10,
             }}
           >
+            {authUser ? (
+              <>
+                <Text style={{ color: palette.text, fontSize: isMobile ? 12 : 14 }}>
+                  Hi, {authUser.fullName?.split(" ")[0] || "there"}
+                </Text>
+                <Button size="small" onClick={handleLogout}>
+                  Log out
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button size="small" onClick={() => navigate("/auth/login")}>
+                  Log in
+                </Button>
+                <Button
+                  size="small"
+                  type="primary"
+                  style={{ background: palette.accent, borderColor: palette.accent }}
+                  onClick={() => navigate("/auth/signup")}
+                >
+                  Sign up
+                </Button>
+              </>
+            )}
             <Tooltip
                 title={
                   voiceEnabled ? "Disable voice output" : "Enable voice output"

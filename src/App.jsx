@@ -1,6 +1,8 @@
 import { useMemo, useState } from "react";
 import { Layout, ConfigProvider, theme as antdTheme } from "antd";
+import { Routes, Route, Navigate } from "react-router-dom";
 import Chat from "./Chat.jsx";
+import AuthPage from "./pages/AuthPage.jsx";
 
 const { Content } = Layout;
 
@@ -31,7 +33,18 @@ export default function App() {
         }}
       >
         <Content style={{ padding: 0 }}>
-          <Chat themeMode={themeMode} onThemeChange={setThemeMode} />
+          <Routes>
+            <Route path="/" element={<Chat themeMode={themeMode} onThemeChange={setThemeMode} />} />
+            <Route
+              path="/auth/login"
+              element={<AuthPage mode="login" themeMode={themeMode} onThemeChange={setThemeMode} />}
+            />
+            <Route
+              path="/auth/signup"
+              element={<AuthPage mode="signup" themeMode={themeMode} onThemeChange={setThemeMode} />}
+            />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
         </Content>
       </Layout>
     </ConfigProvider>
