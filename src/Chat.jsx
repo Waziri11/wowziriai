@@ -281,6 +281,7 @@ export default function Chat({ themeMode, onThemeChange }) {
   const [accessToken, setAccessToken] = useState(
     () => (typeof window !== "undefined" ? localStorage.getItem("wowziri_access") || "" : "")
   );
+  const [authLoading, setAuthLoading] = useState(false);
 
   useEffect(() => {
     if (!isBrowser) return;

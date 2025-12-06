@@ -18,12 +18,11 @@ const passwordRegex = /^(?=.*\d)(?=.*[!@#$%^&*()_+\-[\]{};':"\\|,.<>/?]).{8,}$/;
 
 export default function AuthPage({ mode = "login", themeMode, onThemeChange }) {
   const [form] = Form.useForm();
-  const [otpForm] = Form.useForm();
   const [authMode, setAuthMode] = useState(mode);
   const [loading, setLoading] = useState(false);
-  const [otpStep, setOtpStep] = useState(false);
   const [pendingEmail, setPendingEmail] = useState("");
-  const [otpMessage, setOtpMessage] = useState("");
+  const [verificationEmailSent, setVerificationEmailSent] = useState(false);
+  const [verificationLink, setVerificationLink] = useState("");
   const [error, setError] = useState(null);
   const navigate = useNavigate();
   const isDark = themeMode === "dark";
@@ -31,8 +30,8 @@ export default function AuthPage({ mode = "login", themeMode, onThemeChange }) {
 
   useEffect(() => {
     setAuthMode(mode);
-    setOtpStep(false);
-    setPendingEmail("");
+    setVerificationEmailSent(false);
+    setVerificationLink("");
     setError(null);
   }, [mode]);
 
@@ -80,18 +79,18 @@ export default function AuthPage({ mode = "login", themeMode, onThemeChange }) {
       const values = await form.validateFields();
       setLoading(true);
       if (authMode === "signup") {
-        await apiRequest("/api/auth/signup", { body: values });
+        const data = await apiRequest("/api/auth/signup", { body: values });
         setPendingEmail(values.email);
-        setOtpStep(true);
-        setOtpMessage("We sent a 6-digit code to your email. It expires in 5 minutes.");
-        messageApi.success("Check your email for the verification code.");
+        setVerificationEmailSent(true);
+        setVerificationLink(data?.devLink || "");
+        messageApi.success("Check your email for the verification link.");
       } else {
         const data = await apiRequest("/api/auth/login", { body: values });
         if (data.requiresVerification) {
           setPendingEmail(values.email);
-          setOtpStep(true);
-          setOtpMessage("Please verify your email to finish logging in.");
-          messageApi.info("Verification code sent to your email.");
+          setVerificationEmailSent(true);
+          setVerificationLink(data.devLink || "");
+          messageApi.info("Please verify your email to finish logging in.");
         } else {
           storeAccess(data.accessToken);
           messageApi.success("Logged in");
@@ -108,34 +107,14 @@ export default function AuthPage({ mode = "login", themeMode, onThemeChange }) {
     }
   }, [apiRequest, authMode, form, goHome, messageApi, storeAccess]);
 
-  const handleOtpVerify = useCallback(async () => {
-    try {
-      setError(null);
-      const { code } = await otpForm.validateFields();
-      setLoading(true);
-      const data = await apiRequest("/api/auth/verify-otp", {
-        body: { email: pendingEmail, code },
-      });
-      storeAccess(data.accessToken);
-      messageApi.success("Email verified");
-      goHome();
-    } catch (err) {
-      console.error("Verify error", err);
-      const apiMessage =
-        err?.details?.errors?.[0]?.msg || err?.message || "Unable to verify code";
-      setError(apiMessage);
-    } finally {
-      setLoading(false);
-    }
-  }, [apiRequest, goHome, messageApi, otpForm, pendingEmail, storeAccess]);
-
   const handleResend = useCallback(async () => {
     if (!pendingEmail) return;
     try {
       setError(null);
-      await apiRequest("/api/auth/request-otp", { body: { email: pendingEmail } });
-      setOtpMessage("We sent a new code. Please check your email.");
-      messageApi.success("Verification code re-sent");
+      const data = await apiRequest("/api/auth/request-email-verify", { body: { email: pendingEmail } });
+      setVerificationEmailSent(true);
+      if (data.devLink) setVerificationLink(data.devLink);
+      messageApi.success("Verification email re-sent");
     } catch (err) {
       const apiMessage =
         err?.details?.errors?.[0]?.msg || err?.message || "Unable to resend code";
@@ -145,13 +124,13 @@ export default function AuthPage({ mode = "login", themeMode, onThemeChange }) {
 
   const toggleMode = useCallback(() => {
     setAuthMode((prev) => (prev === "login" ? "signup" : "login"));
-    setOtpStep(false);
     setPendingEmail("");
+    setVerificationEmailSent(false);
+    setVerificationLink("");
     setError(null);
     form.resetFields();
-    otpForm.resetFields();
     navigate(prev => `?`, { replace: true });
-  }, [form, otpForm, navigate]);
+  }, [form, navigate]);
 
   return (
     <div
@@ -243,7 +222,7 @@ export default function AuthPage({ mode = "login", themeMode, onThemeChange }) {
             />
           )}
 
-          {!otpStep ? (
+          {!verificationEmailSent ? (
             <Form layout="vertical" form={form} onFinish={handleAuthSubmit}>
               {authMode === "signup" && (
                 <>
@@ -314,7 +293,7 @@ export default function AuthPage({ mode = "login", themeMode, onThemeChange }) {
                 {authMode === "signup" ? "Create account" : "Log in"}
               </Button>
 
-              <div
+              <Space
                 style={{
                   marginTop: 16,
                   display: "flex",
@@ -331,60 +310,44 @@ export default function AuthPage({ mode = "login", themeMode, onThemeChange }) {
                 <Button type="link" onClick={toggleMode}>
                   {authMode === "signup" ? "Log in" : "Sign up"}
                 </Button>
-              </div>
+              </Space>
             </Form>
           ) : (
-            <Form layout="vertical" form={otpForm} onFinish={handleOtpVerify}>
+            <div style={{ textAlign: "center" }}>
               <Alert
                 type="info"
-                message={otpMessage || "Enter the code we sent to your email."}
+                message="Check your email to verify your account"
+                description={
+                  <div style={{ color: palette.hint }}>
+                    We sent a secure link to <strong>{pendingEmail || "your email"}</strong>. Click it to verify and continue.
+                    {verificationLink && (
+                      <div style={{ marginTop: 12 }}>
+                        <div style={{ marginBottom: 6 }}>Dev link (local only):</div>
+                        <a href={verificationLink} style={{ wordBreak: "break-all" }}>
+                          {verificationLink}
+                        </a>
+                      </div>
+                    )}
+                  </div>
+                }
                 showIcon
-                style={{ marginBottom: 12 }}
+                style={{ marginBottom: 16 }}
               />
-              <Form.Item
-                name="code"
-                label="6-digit code"
-                rules={[
-                  { required: true, message: "Enter the code" },
-                  { len: 6, message: "Code should be 6 digits" },
-                ]}
-              >
-                <Input placeholder="123456" maxLength={6} />
-              </Form.Item>
-              <Space
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  width: "100%",
-                  marginBottom: 8,
-                }}
-              >
-                <Text style={{ color: palette.hint, fontSize: 12 }}>
-                  Sent to {pendingEmail || "your email"}.
-                </Text>
-                <Button type="link" onClick={handleResend} disabled={!pendingEmail}>
-                  Resend code
+              <Space direction="vertical" style={{ width: "100%" }}>
+                <Button
+                  type="primary"
+                  block
+                  onClick={handleResend}
+                  disabled={!pendingEmail}
+                  style={{ background: palette.accent, borderColor: palette.accent }}
+                >
+                  Resend verification email
+                </Button>
+                <Button type="link" block onClick={toggleMode}>
+                  {authMode === "signup" ? "Use another email" : "Back to login"}
                 </Button>
               </Space>
-              <Button
-                type="primary"
-                htmlType="submit"
-                block
-                size="large"
-                loading={loading}
-                style={{ background: palette.accent, borderColor: palette.accent }}
-              >
-                Verify email
-              </Button>
-              <Button
-                style={{ marginTop: 10 }}
-                block
-                onClick={() => setOtpStep(false)}
-              >
-                Back to {authMode === "signup" ? "sign up" : "log in"}
-              </Button>
-            </Form>
+            </div>
           )}
         </div>
 
