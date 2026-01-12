@@ -3,8 +3,6 @@ import { Layout, ConfigProvider, theme as antdTheme } from "antd";
 import { Routes, Route, Navigate } from "react-router-dom";
 import Chat from "./Chat.jsx";
 import AuthPage from "./pages/AuthPage.jsx";
-import VerifyEmailPage from "./pages/VerifyEmailPage.jsx";
-import InterestsPage from "./pages/InterestsPage.jsx";
 
 const { Content } = Layout;
 
@@ -45,8 +43,6 @@ export default function App() {
               path="/auth/signup"
               element={<AuthPage mode="signup" themeMode={themeMode} onThemeChange={setThemeMode} />}
             />
-            <Route path="/verify-email" element={<VerifyEmailPage />} />
-            <Route path="/interests" element={<InterestsPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </Content>

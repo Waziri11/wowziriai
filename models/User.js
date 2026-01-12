@@ -18,7 +18,6 @@ const userSchema = new mongoose.Schema(
     passwordHash: { type: String, required: true },
     interests: { type: [String], default: [] },
     emailVerified: { type: Boolean, default: false },
-  emailVerifyIssuedAt: { type: Date },
     otp: { type: otpSchema, default: {} },
   },
   { timestamps: true },

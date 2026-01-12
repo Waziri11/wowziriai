@@ -14,16 +14,6 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 
 const clientOrigin = process.env.APP_URL || "http://localhost:5173";
-const hasMongoUri = Boolean(process.env.MONGODB_URI);
-const hasJwtAccess = Boolean(process.env.JWT_ACCESS_SECRET);
-const hasJwtRefresh = Boolean(process.env.JWT_REFRESH_SECRET);
-const envName = process.env.NODE_ENV || "development";
-
-console.log(`[env] NODE_ENV=${envName}`);
-console.log(`[env] MONGODB_URI set: ${hasMongoUri}`);
-console.log(`[env] JWT_ACCESS_SECRET set: ${hasJwtAccess}`);
-console.log(`[env] JWT_REFRESH_SECRET set: ${hasJwtRefresh}`);
-console.log(`[env] APP_URL=${clientOrigin}`);
 
 app.use(
   cors({
