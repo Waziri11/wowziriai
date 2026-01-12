@@ -86,16 +86,21 @@ export default function AuthPage({ mode = "login", themeMode, onThemeChange }) {
         setOtpMessage("We sent a 6-digit code to your email. It expires in 5 minutes.");
         messageApi.success("Check your email for the verification code.");
       } else {
-        const data = await apiRequest("/api/auth/login", { body: values });
-        if (data.requiresVerification) {
-          setPendingEmail(values.email);
-          setOtpStep(true);
-          setOtpMessage("Please verify your email to finish logging in.");
-          messageApi.info("Verification code sent to your email.");
-        } else {
+        try {
+          const data = await apiRequest("/api/auth/login", { body: values });
           storeAccess(data.accessToken);
           messageApi.success("Logged in");
           goHome();
+        } catch (loginErr) {
+          // Check if this is an unverified email case
+          if (loginErr?.details?.requiresVerification) {
+            setPendingEmail(values.email);
+            setOtpStep(true);
+            setOtpMessage("Please verify your email to finish logging in.");
+            messageApi.info("Verification code sent to your email.");
+          } else {
+            throw loginErr; // Re-throw other errors
+          }
         }
       }
     } catch (err) {
