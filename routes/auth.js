@@ -3,24 +3,14 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { body, validationResult } from "express-validator";
 import User from "../models/User.js";
-import { sendVerificationEmail } from "../utils/email.js";
+import { sendOtpEmail } from "../utils/email.js";
 import { requireAuth } from "../middleware/auth.js";
 
 const router = express.Router();
 
+const accessSecret = process.env.JWT_ACCESS_SECRET;
+const refreshSecret = process.env.JWT_REFRESH_SECRET;
 const isProd = process.env.NODE_ENV === "production";
-const appUrl = (process.env.APP_URL || "http://localhost:5173").replace(/\/$/, "");
-
-const accessSecret = process.env.JWT_ACCESS_SECRET || (!isProd ? "dev_access_secret" : undefined);
-const refreshSecret = process.env.JWT_REFRESH_SECRET || (!isProd ? "dev_refresh_secret" : undefined);
-const emailVerifySecret = process.env.JWT_EMAIL_VERIFY_SECRET || (!isProd ? "dev_email_verify_secret" : undefined);
-
-if (!isProd && (!process.env.JWT_ACCESS_SECRET || !process.env.JWT_REFRESH_SECRET)) {
-  console.warn("[auth] Using dev JWT access/refresh secrets because env vars are missing. Set JWT_ACCESS_SECRET and JWT_REFRESH_SECRET for consistency.");
-}
-if (!isProd && !process.env.JWT_EMAIL_VERIFY_SECRET) {
-  console.warn("[auth] Using dev email verification secret because JWT_EMAIL_VERIFY_SECRET is missing.");
-}
 
 function issueTokens(user) {
   if (!accessSecret || !refreshSecret) {
@@ -64,41 +54,23 @@ function buildUserResponse(user) {
   };
 }
 
-function issueEmailVerifyToken(user) {
-  if (!emailVerifySecret) {
-    throw new Error("Email verification secret is missing");
-  }
-  return jwt.sign(
-    {
-      sub: user.id,
-      email: user.email,
-      type: "email-verify",
-    },
-    emailVerifySecret,
-    { expiresIn: "1h" },
-  );
-}
-
-async function sendVerificationLink(user) {
-  const token = issueEmailVerifyToken(user);
-  const issuedAt = new Date();
-  user.emailVerifyIssuedAt = issuedAt;
+async function setOtp(user) {
+  const code = Math.floor(100000 + Math.random() * 900000).toString();
+  console.log(`[OTP] Generated code for ${user.email}: ${code}`);
+  const codeHash = await bcrypt.hash(code, 10);
+  const now = Date.now();
+  user.otp = {
+    codeHash,
+    expiresAt: new Date(now + 5 * 60 * 1000),
+    resendAvailableAt: new Date(now + 45 * 1000),
+  };
   await user.save();
-
-  const link = `${appUrl}/verify-email?token=${encodeURIComponent(token)}`;
-  await sendVerificationEmail({
-    to: user.email,
-    fullName: user.fullName,
-    link,
-    expiresMinutes: 60,
-    appName: "Wowziri",
-  });
-
-  return { token, link, issuedAt };
+  console.log(`[OTP] Saved hashed code to database for ${user.email}`);
+  await sendOtpEmail({ to: user.email, code });
 }
 
 const passwordPolicyMessage = "Password must be at least 8 characters, include a number and a special symbol.";
-const passwordRegex = /^(?=.*\d)(?=.*[!@#$%^&*()_+\-[\]{};':"\\|,.<>/?]).{8,}$/;
+const passwordRegex = /^(?=.*[0-9])(?=.*[!@#$%^&*()_+\-=[\]{};':"\|,.<>/?]).{8,}$/;
 
 const signupValidators = [
   body("fullName").trim().notEmpty().withMessage("Full name is required"),
@@ -134,19 +106,15 @@ router.post("/signup", signupValidators, async (req, res) => {
       emailVerified: false,
     });
 
-    const { link, token } = await sendVerificationLink(user);
+    await setOtp(user);
 
-    const responseBody = {
-      message: "Signup successful. Check your email for a verification link.",
+    return res.status(201).json({
+      message: "Signup successful, verification code sent to email.",
       user: { id: user.id, email: user.email },
-    };
-    if (!isProd) responseBody.devLink = link || token;
-
-    return res.status(201).json(responseBody);
+    });
   } catch (err) {
     console.error("Signup error", err);
-    const message = isProd ? "Unable to sign up right now" : err?.message || "Unable to sign up right now";
-    return res.status(500).json({ error: message });
+    return res.status(500).json({ error: "Unable to sign up right now" });
   }
 });
 
@@ -167,10 +135,8 @@ router.post(
       if (!valid) return res.status(401).json({ error: "Invalid credentials" });
 
       if (!user.emailVerified) {
-        const { link, token } = await sendVerificationLink(user);
-        const resp = { error: "Email not verified", requiresVerification: true };
-        if (!isProd) resp.devLink = link || token;
-        return res.status(403).json(resp);
+        await setOtp(user);
+        return res.status(403).json({ error: "Email not verified", requiresVerification: true });
       }
 
       const { accessToken, refreshToken } = issueTokens(user);
@@ -178,84 +144,63 @@ router.post(
       return res.json({ accessToken, user: buildUserResponse(user) });
     } catch (err) {
       console.error("Login error", err);
-      const message = isProd ? "Unable to login right now" : err?.message || "Unable to login right now";
-      return res.status(500).json({ error: message });
+      return res.status(500).json({ error: "Unable to login right now" });
     }
   },
 );
 
 router.post(
-  "/verify-email",
-  [body("token").notEmpty().withMessage("Verification token is required")],
-  async (req, res) => {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
-    }
-    const { token } = req.body;
-    try {
-      if (!emailVerifySecret) throw new Error("Email verification secret missing");
-      const decoded = jwt.verify(token, emailVerifySecret);
-      if (decoded.type !== "email-verify") {
-        return res.status(400).json({ error: "Invalid verification token" });
-      }
-
-      const user = await User.findById(decoded.sub);
-      if (!user || user.email !== decoded.email) {
-        return res.status(400).json({ error: "Invalid verification token" });
-      }
-
-      if (user.emailVerifyIssuedAt) {
-        const issuedAtMs = new Date(user.emailVerifyIssuedAt).getTime();
-        const tokenIat = decoded.iat ? decoded.iat * 1000 : 0;
-        if (tokenIat < issuedAtMs - 1000) {
-          return res.status(400).json({ error: "Verification link has been superseded. Please use the latest email." });
-        }
-      }
-
-      user.emailVerified = true;
-      user.emailVerifyIssuedAt = null;
-      user.otp = {};
-      await user.save();
-
-      const { accessToken, refreshToken } = issueTokens(user);
-      setRefreshCookie(res, refreshToken);
-      const payload = { accessToken, user: buildUserResponse(user) };
-      if (!isProd) payload.devAccessToken = accessToken;
-      return res.json(payload);
-    } catch (err) {
-      console.error("Verify email error", err);
-      const message = isProd ? "Unable to verify email right now" : err?.message || "Unable to verify email right now";
-      return res.status(400).json({ error: message });
-    }
-  },
-);
-
-router.post(
-  "/request-email-verify",
-  [body("email").isEmail().withMessage("Valid email is required").normalizeEmail()],
+  "/verify-otp",
+  [body("email").isEmail(), body("code").trim().isLength({ min: 6, max: 6 })],
   async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       return res.status(400).json({ errors: errors.array() });
     }
     const { email } = req.body;
+    const code = req.body.code?.toString().trim(); // Ensure string and trim whitespace
+
+    console.log(`[OTP] Verification attempt for ${email} with code: "${code}"`);
+
     try {
       const user = await User.findOne({ email });
-      if (!user) return res.status(404).json({ error: "User not found" });
-      if (user.emailVerified) return res.json({ message: "Email already verified" });
-      const { link, token } = await sendVerificationLink(user);
-      const resp = { message: "Verification link sent" };
-      if (!isProd) resp.devLink = link || token;
-      return res.json(resp);
+      if (!user) {
+        console.log(`[OTP] User not found: ${email}`);
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      const { otp } = user;
+      if (!otp?.codeHash || !otp.expiresAt) {
+        console.log(`[OTP] No active verification code for ${email}`);
+        return res.status(400).json({ error: "No active verification code" });
+      }
+      if (new Date(otp.expiresAt).getTime() < Date.now()) {
+        console.log(`[OTP] Code expired for ${email}`);
+        return res.status(400).json({ error: "Verification code expired" });
+      }
+
+      const matches = await bcrypt.compare(code, otp.codeHash);
+      console.log(`[OTP] Comparison result for ${email}: ${matches}`);
+
+      if (!matches) {
+        return res.status(400).json({ error: "Invalid verification code" });
+      }
+
+      user.emailVerified = true;
+      user.otp = {};
+      await user.save();
+      console.log(`[OTP] Email verified successfully for ${email}`);
+
+      const { accessToken, refreshToken } = issueTokens(user);
+      setRefreshCookie(res, refreshToken);
+      return res.json({ accessToken, user: buildUserResponse(user) });
     } catch (err) {
-      console.error("Request verify link error", err);
-      return res.status(500).json({ error: "Unable to send verification link right now" });
+      console.error("Verify OTP error", err);
+      return res.status(500).json({ error: "Unable to verify code right now" });
     }
   },
 );
 
-// Legacy route kept for backward compatibility; now sends verification link.
 router.post(
   "/request-otp",
   [body("email").isEmail()],
@@ -268,36 +213,16 @@ router.post(
     try {
       const user = await User.findOne({ email });
       if (!user) return res.status(404).json({ error: "User not found" });
-      if (user.emailVerified) return res.json({ message: "Email already verified" });
-      const { link, token } = await sendVerificationLink(user);
-      const resp = { message: "Verification link sent" };
-      if (!isProd) resp.devLink = link || token;
-      return res.json(resp);
+      const resendAt = user.otp?.resendAvailableAt ? new Date(user.otp.resendAvailableAt).getTime() : 0;
+      if (resendAt && resendAt > Date.now()) {
+        const waitMs = resendAt - Date.now();
+        return res.status(429).json({ error: `Please wait ${Math.ceil(waitMs / 1000)} seconds before resending` });
+      }
+      await setOtp(user);
+      return res.json({ message: "Verification code sent" });
     } catch (err) {
-      console.error("Request OTP (link) error", err);
-      return res.status(500).json({ error: "Unable to send verification link right now" });
-    }
-  },
-);
-
-router.post(
-  "/interests",
-  [requireAuth, body("interests").isArray().withMessage("Interests must be an array of strings")],
-  async (req, res) => {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
-    }
-    try {
-      const interests = (req.body.interests || []).map((i) => String(i || "").trim()).filter(Boolean);
-      const user = await User.findById(req.user.id);
-      if (!user) return res.status(404).json({ error: "User not found" });
-      user.interests = interests;
-      await user.save();
-      return res.json({ user: buildUserResponse(user) });
-    } catch (err) {
-      console.error("Interests error", err);
-      return res.status(500).json({ error: "Unable to save interests right now" });
+      console.error("Request OTP error", err);
+      return res.status(500).json({ error: "Unable to send code right now" });
     }
   },
 );
